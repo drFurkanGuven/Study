@@ -1,0 +1,18 @@
+# python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# db (sunucuda oluşur, repoya girmez)
+*.db
+*.sqlite3
+
+# logs
+logs/*.log
+logs/*.access.log
+logs/*.error.log
+!logs/.gitkeep
+
+# os
+.DS_Store

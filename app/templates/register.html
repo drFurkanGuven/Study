@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kayıt — Ders Motivasyon</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="card auth-card">
+    <h1>Hoş geldin ✨</h1>
+    <p class="muted">İkiniz de ayrı ayrı kayıt olun, sonra panelde birbirinizi göreceksiniz.</p>
+    {% if err %}<div class="alert">{{ err }}</div>{% endif %}
+    <form method="post">
+      <input name="username" placeholder="Kullanıcı adı (örn: furkan)" required>
+      <input name="password" type="password" placeholder="Şifre (min 3 karakter)" required>
+      <button class="btn primary" type="submit">Kayıt Ol</button>
+    </form>
+    <p class="muted">Zaten hesabın var mı? <a href="/login">Giriş yap</a></p>
+  </div>
+</div>
+</body>
+</html>
