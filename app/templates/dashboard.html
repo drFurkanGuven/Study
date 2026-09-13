@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/static/fox.svg">
-<style>body::before{background-image:url(/scenery/{{ me.scenery_seed }}.svg)}</style>
+<style>body::before{background-image:url(/scenery/{{ me.scenery_seed }}.svg?v=2)}</style>
 <meta name="theme-color" content="#111111">
 </head>
 <body>
@@ -331,13 +331,13 @@
         {% for g in gallery %}
         <form action="/api/theme" method="post" class="tile {{ 'cur' if g==me.scenery_seed else '' }}">
           <input type="hidden" name="seed" value="{{ g }}">
-          <button type="submit" title="{{ g }}"><img src="/scenery/{{ g }}.svg" alt="{{ g }}" loading="lazy"><span>{{ g }}</span></button>
+          <button type="submit" title="{{ g }}"><img src="/scenery/{{ g }}.svg?v=2" alt="{{ g }}" loading="lazy"><span>{{ g }}</span></button>
         </form>
         {% endfor %}
       </div>
       <h2>Sürpriz</h2>
       <div class="gal-one">
-        <img id="surImg" src="/scenery/SURPRIZ.svg" alt="sürpriz">
+        <img id="surImg" src="/scenery/SURPRIZ.svg?v=2" alt="sürpriz">
         <form action="/api/theme" method="post" class="row">
           <input type="hidden" name="seed" id="surSeed" value="SURPRIZ">
           <button class="btn" type="button" onclick="surprise()">Zar at 🎲</button>

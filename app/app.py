@@ -435,7 +435,7 @@ def gen_scenery(seed):
 def scenery(seed):
     svg = gen_scenery(seed)
     return Response(svg, mimetype="image/svg+xml",
-                    headers={"Cache-Control": "public, max-age=86400"})
+                    headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.route("/api/theme", methods=["POST"])
