@@ -3,11 +3,13 @@ Description=Study Ders Motivasyon (gunicorn)
 After=network.target
 
 [Service]
-User=nginx
-Group=nginx
+User=root
+Group=root
 WorkingDirectory=/var/www/furkanguven.space/study/app
 Environment="PATH=/var/www/furkanguven.space/study/app/venv/bin"
-ExecStart=/var/www/furkanguven.space/study/app/venv/bin/gunicorn -w 2 -b 127.0.0.1:5011 app:app
+# SELinux: venv/bin/gunicorn scriptine init_t'den execute yok (AVC denied),
+# o yüzden system python üzerinden modul olarak calistir (sadece read gerekir)
+ExecStart=/var/www/furkanguven.space/study/app/venv/bin/python -m gunicorn -w 2 -b 127.0.0.1:5011 app:app
 Restart=always
 RestartSec=3
 
