@@ -6,6 +6,8 @@
 <title>Odak — Panel</title>
 <link rel="stylesheet" href="/static/style.css">
 <link rel="manifest" href="/static/manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#111111">
 </head>
 <body>
@@ -32,11 +34,11 @@
 </nav>
 
 <main class="wrap">
-  <!-- ODAK -->
+  <!-- ODAK : tilki sahnesi -->
   <section class="panel" id="panel-odak">
-    <div class="odak-grid">
-      <div class="card timer-card">
-        <div id="setupView">
+    <div class="fox-scene"><img src="/static/scenery.svg" alt=""></div>
+    <div class="fox-wrap">
+      <div class="card fox-card" id="setupView">
           <input id="goalInput" placeholder="Bu odakta ne bitecek? (örn: Ünite 3 özet)" maxlength="160">
           <div class="frow">
             <select id="taskSelect">
@@ -63,19 +65,30 @@
           </div>
           <button class="btn primary block big-start" onclick="toggleTimer()">Başla</button>
           <p class="muted" id="pomMsg">Bitince otomatik kaydedilir (+2 XP/dk).</p>
-        </div>
-        <div id="focusView" hidden>
+      </div>
+      <div class="card fox-card" id="focusView" hidden>
           <div class="fstate" id="fState">Odak</div>
-          <div class="fring">
+          <div class="fox-controls">
+            <button class="px-btn" id="pauseBtn" onclick="toggleTimer()" title="Başlat/Duraklat">❚❚</button>
+            <button class="px-btn" onclick="resetFox()" title="Sıfırla">↻</button>
+            <button class="px-btn" id="soundBtn" onclick="toggleSound()" title="Ses">🔊</button>
+            <button class="px-btn" onclick="toggleFull()" title="Tam ekran">⛶</button>
+          </div>
+          <div class="fring2">
             <svg viewBox="0 0 260 260">
               <circle cx="130" cy="130" r="112" class="trk"/>
               <circle cx="130" cy="130" r="112" class="fil" id="ringFil"/>
             </svg>
-            <div class="ftimer" id="timer">25:00</div>
+            <img id="foxRun" src="/static/fox.svg" alt="">
+            <div class="ftimer pix" id="timer">25:00</div>
           </div>
           <div class="goal-line" id="goalLine"></div>
-          <div class="dots" id="cycleDots" data-chain="{{ chain }}"></div>
-          <button class="pause-btn" id="pauseBtn" onclick="toggleTimer()">❚❚</button>
+          <div class="cycle" id="cycleBar" data-chain="{{ chain }}"></div>
+          <div class="modes">
+            <button class="btn mode sel" id="mFocus" onclick="foxMode('focus')">odak</button>
+            <button class="btn mode" id="mShort" onclick="foxMode('short')">kısa mola</button>
+            <button class="btn mode" id="mLong" onclick="foxMode('long')">uzun mola</button>
+          </div>
           <button class="giveup" onclick="giveUp()">vazgeç</button>
           <div id="scoreBox" style="display:none">
             <p>Odak nasıldı?</p>
@@ -87,7 +100,6 @@
               <button class="btn chip" onclick="saveScore(5)">5★</button>
             </div>
           </div>
-        </div>
       </div>
       <div class="card day-card">
         <div class="ring" style="--p:{{ ring_pct }}">

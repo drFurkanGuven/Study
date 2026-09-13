@@ -64,8 +64,6 @@ body.dark .btn{background:#27272a;border-color:#3f3f46;color:#f4f4f5}
 .code{font-size:20px;font-weight:800;letter-spacing:3px;background:var(--soft);border:1px dashed #a1a1aa;border-radius:10px;padding:6px 16px}
 
 /* odak */
-.odak-grid{display:flex;flex-direction:column;gap:var(--pad);min-height:0;align-content:start}
-.timer-card{flex:0 0 auto;display:flex;flex-direction:column;justify-content:flex-start}
 .day-card{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;align-items:stretch}
 .day-card .ring{margin:0 auto}
 .frow{display:flex;gap:8px}
@@ -80,29 +78,44 @@ body.dark .btn{background:#27272a;border-color:#3f3f46;color:#f4f4f5}
 .dur-grid .chip.sel{background:var(--acc);color:var(--bg);border-color:var(--acc)}
 .big-start{font-size:17px;padding:13px;margin-top:12px}
 
-/* dalma modu: timer çalışırken her şey susar */
-#focusView{text-align:center}
-.fstate{font-size:15px;font-weight:600;opacity:.75;margin-bottom:2px}
-.fring{position:relative;width:min(66dvh,300px);margin:4px auto}
-.fring svg{width:100%;transform:rotate(-90deg)}
-.fring circle{fill:none;stroke-width:10}
-.fring .trk{stroke:rgba(255,255,255,.22)}
-.fring .fil{stroke:#f7f4e8;stroke-linecap:round;stroke-dasharray:703.7;stroke-dashoffset:0}
-.ftimer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(44px,9dvh,64px);font-weight:200;letter-spacing:3px;font-variant-numeric:tabular-nums;color:#f7f4e8}
-.goal-line{min-height:22px;font-size:15px;font-weight:600;color:#f7f4e8;opacity:.9;margin:2px 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 12px}
-.dots{letter-spacing:6px;font-size:15px;color:rgba(247,244,232,.4);margin-bottom:10px}
-.dots b{color:#f7f4e8;font-weight:400}
-.pause-btn{width:72px;height:72px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#f7f4e8;font-size:22px;cursor:pointer}
-.pause-btn:active{transform:scale(.94)}
-.giveup{display:block;margin:12px auto 0;background:none;border:none;color:rgba(247,244,232,.6);font-size:13px;cursor:pointer;text-decoration:underline}
-#focusView #scoreBox p{color:#f7f4e8}
-#focusView #scoreBox .chip{background:rgba(255,255,255,.14);border-color:transparent;color:#f7f4e8}
-body.focusing{background:linear-gradient(160deg,#35805f,#1d5c41 70%)}
-body.focusing.dark{background:linear-gradient(160deg,#123c2c,#0a241a 70%)}
+/* ===== tilki sahnesi (odak sekmesi) ===== */
+#panel-odak{position:relative;overflow:hidden;border-radius:var(--radius)}
+.fox-scene{position:absolute;inset:0;z-index:0}
+.fox-scene img{width:100%;height:100%;object-fit:cover;image-rendering:pixelated}
+.fox-wrap{position:relative;z-index:1;display:flex;flex-direction:column;gap:var(--pad);margin:auto;width:100%;max-width:560px;padding:6px}
+.day-card{background:rgba(255,255,255,.86);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
+body.dark .day-card{background:rgba(24,24,27,.86)}
+.fox-card{background:rgba(255,255,255,.86);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.7);border-radius:24px;text-align:center}
+body.dark .fox-card{background:rgba(20,22,26,.88);border-color:rgba(255,255,255,.12)}
+.pix{font-family:'Press Start 2P',ui-monospace,monospace}
+.fox-controls{display:flex;gap:10px;justify-content:center;margin:2px 0 6px}
+.px-btn{width:46px;height:46px;border-radius:12px;border:none;background:#3a3f45;color:#fff;font-size:18px;cursor:pointer;box-shadow:0 3px 0 #23262b}
+.px-btn:active{transform:translateY(2px);box-shadow:none}
+.px-btn.lit{background:#e8822a;box-shadow:0 3px 0 #a85a14}
+.fring2{position:relative;width:min(58dvh,272px);margin:2px auto}
+.fring2 svg{width:100%;transform:rotate(-90deg)}
+.fring2 circle{fill:none;stroke-width:16}
+.fring2 .trk{stroke:rgba(255,255,255,.85)}
+body.dark .fring2 .trk{stroke:rgba(255,255,255,.2)}
+.fring2 .fil{stroke:#e8822a;stroke-linecap:round;stroke-dasharray:703.7;stroke-dashoffset:0}
+#foxRun{position:absolute;width:34px;image-rendering:pixelated;transform:translate(-50%,-50%);transition:left .5s linear,top .5s linear;z-index:2}
+.ftimer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(26px,5dvh,38px);color:#2b2b2b;letter-spacing:1px}
+body.dark .ftimer{color:#f4f4f5}
+.cycle{margin:6px 0;font-size:13px;color:#4b5563;font-weight:600}
+body.dark .cycle{color:#d4d4d8}
+.modes{display:flex;gap:8px;justify-content:center;margin:4px 0}
+.modes .mode{border-radius:12px;background:rgba(255,255,255,.9);box-shadow:0 3px 0 rgba(0,0,0,.12)}
+.modes .mode.sel{background:#e8822a;border-color:#e8822a;color:#fff;box-shadow:0 3px 0 #a85a14}
+#focusView .goal-line{color:#374151}
+body.dark #focusView .goal-line{color:#e5e7eb}
+#focusView .giveup{color:rgba(60,60,60,.55)}
+body.dark #focusView .giveup{color:rgba(244,244,245,.6)}
+#focusView #scoreBox p{color:#374151}
+body.dark #focusView #scoreBox p{color:#e5e7eb}
+/* dalma modu: chrome gizlenir, sahne kalır */
 body.focusing .topbar,body.focusing .tabs,body.focusing .announce{display:none}
-body.focusing .wrap{max-width:560px;justify-content:center;padding-bottom:var(--pad)}
+body.focusing .wrap{max-width:600px;justify-content:center;padding-bottom:var(--pad)}
 body.focusing #panel-odak .day-card{display:none}
-body.focusing #panel-odak .timer-card{background:transparent;border:none;box-shadow:none;padding:0}
 body.focusing #setupView{display:none}
 body.focusing #focusView{display:block}
 .stats{display:flex;gap:8px;margin:6px 0}
@@ -196,10 +209,8 @@ body.dark .duel-score .side.win{background:#1e1b4b;border-color:#4f46e5}
   .tab{flex:0 0 auto;flex-direction:column;font-size:22px;padding:12px 4px}
   .tab span{font-size:11px}
   .topbar{position:sticky;top:0}
-  .odak-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:var(--pad);flex:0 0 auto;margin:auto 0;width:100%;align-items:start}
-  #panel-odak.active{justify-content:flex-start}
-  .day-card{flex-direction:column;justify-content:flex-start;align-items:stretch;text-align:center}
-  .day-card .ring{margin:0 auto}
+  #panel-odak{margin:auto 0}
+  .day-card{text-align:center}
   #timer{font-size:clamp(72px,11vw,120px)}
   .veri-grid{grid-template-columns:repeat(2,1fr)}
   #panel-ekip.active{grid-template-columns:repeat(3,1fr)}
