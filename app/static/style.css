@@ -75,6 +75,36 @@ body.dark .btn{background:#27272a;border-color:#3f3f46;color:#f4f4f5}
 #timer{font-size:clamp(56px,17dvh,96px);font-weight:800;letter-spacing:2px;line-height:1;margin:2px 0;font-variant-numeric:tabular-nums}
 #goalInput{margin-bottom:2px}
 #scoreBox{margin-top:8px}
+.lbl{font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 4px}
+.dur-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.dur-grid .chip.sel{background:var(--acc);color:var(--bg);border-color:var(--acc)}
+.big-start{font-size:17px;padding:13px;margin-top:12px}
+
+/* dalma modu: timer çalışırken her şey susar */
+#focusView{text-align:center}
+.fstate{font-size:15px;font-weight:600;opacity:.75;margin-bottom:2px}
+.fring{position:relative;width:min(66dvh,300px);margin:4px auto}
+.fring svg{width:100%;transform:rotate(-90deg)}
+.fring circle{fill:none;stroke-width:10}
+.fring .trk{stroke:rgba(255,255,255,.22)}
+.fring .fil{stroke:#f7f4e8;stroke-linecap:round;stroke-dasharray:703.7;stroke-dashoffset:0}
+.ftimer{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:clamp(44px,9dvh,64px);font-weight:200;letter-spacing:3px;font-variant-numeric:tabular-nums;color:#f7f4e8}
+.goal-line{min-height:22px;font-size:15px;font-weight:600;color:#f7f4e8;opacity:.9;margin:2px 0 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:0 12px}
+.dots{letter-spacing:6px;font-size:15px;color:rgba(247,244,232,.4);margin-bottom:10px}
+.dots b{color:#f7f4e8;font-weight:400}
+.pause-btn{width:72px;height:72px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#f7f4e8;font-size:22px;cursor:pointer}
+.pause-btn:active{transform:scale(.94)}
+.giveup{display:block;margin:12px auto 0;background:none;border:none;color:rgba(247,244,232,.6);font-size:13px;cursor:pointer;text-decoration:underline}
+#focusView #scoreBox p{color:#f7f4e8}
+#focusView #scoreBox .chip{background:rgba(255,255,255,.14);border-color:transparent;color:#f7f4e8}
+body.focusing{background:linear-gradient(160deg,#35805f,#1d5c41 70%)}
+body.focusing.dark{background:linear-gradient(160deg,#123c2c,#0a241a 70%)}
+body.focusing .topbar,body.focusing .tabs,body.focusing .announce{display:none}
+body.focusing .wrap{max-width:560px;justify-content:center;padding-bottom:var(--pad)}
+body.focusing #panel-odak .day-card{display:none}
+body.focusing #panel-odak .timer-card{background:transparent;border:none;box-shadow:none;padding:0}
+body.focusing #setupView{display:none}
+body.focusing #focusView{display:block}
 .stats{display:flex;gap:8px;margin:6px 0}
 .stat{flex:1;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center;min-width:0}
 .stat span{font-size:19px;font-weight:800;display:block}

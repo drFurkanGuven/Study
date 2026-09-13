@@ -38,35 +38,84 @@ function notify(t,b){try{if('Notification' in window&&Notification.permission===
 
 // pomodoro (dayanıklı: sayfa kapanınca localStorage'dan devam)
 let totalSec=25*60,leftSec=totalSec,timerId=null,isBreak=false,pendingSave=null;
+const RING_C=703.7;
 const el=()=>document.getElementById('timer');
 function fmt(s){const m=Math.floor(s/60),ss=s%60;return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
-function render(){if(!el())return;el().textContent=fmt(leftSec);document.title=fmt(leftSec)+' — Odak';}
+function render(){
+  if(!el())return;
+  el().textContent=fmt(leftSec);
+  document.title=fmt(leftSec)+' — Odak';
+  const f=document.getElementById('ringFil');
+  if(f)f.style.strokeDashoffset=String(RING_C*(leftSec/totalSec));
+  paintDots();
+}
+function paintDots(){
+  const d=document.getElementById('cycleDots');if(!d)return;
+  const n=parseInt(d.dataset.chain||'0',10),pos=n%4===0&&n>0?4:n%4;
+  let s='';for(let i=0;i<4;i++)s+=i<pos?'<b>●</b>':'●';
+  d.innerHTML=s;
+}
+function setFocus(on){
+  document.body.classList.toggle('focusing',on);
+  document.getElementById('setupView').hidden=on;
+  document.getElementById('focusView').hidden=!on;
+  if(on){
+    showTab('odak');
+    const g=document.getElementById('goalInput')?.value||'';
+    const t=document.getElementById('taskSelect');
+    const tn=t&&t.value?t.selectedOptions[0].textContent:'';
+    document.getElementById('goalLine').textContent=g||tn||(isBreak?'Mola — nefes al':'Odak');
+    document.getElementById('fState').textContent=isBreak?'Mola':'Odak';
+    document.getElementById('scoreBox').style.display='none';
+  }
+  render();
+}
 function persist(){try{localStorage.setItem('odak-t',{end:Date.now()+leftSec*1000,total:totalSec,break:isBreak?'1':'0'});}catch(e){}}
 function clearPersist(){try{localStorage.removeItem('odak-t');}catch(e){}}
-function setLen(m){stopTimer();clearPersist();totalSec=m*60;leftSec=totalSec;isBreak=(m===5||m===15);const b=document.getElementById('startBtn');if(b)b.textContent='Başla';render();}
+function setLen(m,kind,btn){
+  stopTimer();clearPersist();setFocus(false);
+  totalSec=m*60;leftSec=totalSec;isBreak=(kind==='break');
+  document.querySelectorAll('.dur-grid .chip').forEach(c=>c.classList.remove('sel'));
+  if(btn)btn.classList.add('sel');
+  render();
+}
 function toggleTimer(){
   wantNotify();
-  const btn=document.getElementById('startBtn');
-  if(timerId){stopTimer();clearPersist();presenceClear();if(btn)btn.textContent='Devam Et';return;}
-  if(btn)btn.textContent='Duraklat';
+  const pb=document.getElementById('pauseBtn');
+  if(timerId){
+    stopTimer();clearPersist();presenceClear();
+    if(pb)pb.textContent='▶';
+    return;
+  }
   document.getElementById('scoreBox').style.display='none';
+  setFocus(true);
+  if(pb)pb.textContent='❚❚';
   presencePing();
   timerId=setInterval(()=>{
     leftSec--;render();persist();
     if(leftSec%30===0)presencePing();
-    if(leftSec<=0){stopTimer();clearPersist();presenceClear();if(btn)btn.textContent='Başla';finish();}
+    if(leftSec<=0){stopTimer();clearPersist();presenceClear();finish();}
   },1000);
+  render();
+}
+function giveUp(){
+  stopTimer();clearPersist();presenceClear();pendingSave=null;
+  leftSec=totalSec;setFocus(false);
 }
 function stopTimer(){if(timerId){clearInterval(timerId);timerId=null;}}
-function resetTimer(){stopTimer();clearPersist();presenceClear();leftSec=totalSec;const b=document.getElementById('startBtn');if(b)b.textContent='Başla';document.getElementById('scoreBox').style.display='none';render();}
+function resetTimer(){giveUp();}
 async function finish(){
   try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}
-  const mins=Math.round(totalSec/60),kind=isBreak?'break':'focus',msg=document.getElementById('pomMsg');
-  if(kind==='break'){notify('Mola bitti','Yeni bir odak başlat.');if(msg)msg.textContent='Mola bitti. Yeni bir odak başlat.';resetTimer();return;}
+  const mins=Math.round(totalSec/60),kind=isBreak?'break':'focus';
+  if(kind==='break'){
+    notify('Mola bitti','Yeni bir odak başlat.');
+    giveUp();
+    setLen(25,'focus',document.querySelector('.dur-grid .chip'));
+    return;
+  }
   notify('Odak tamam','+'+(mins*2)+' XP hazır. Odak puanını ver.');
   pendingSave={minutes:mins,goal:document.getElementById('goalInput')?.value||'',task_id:document.getElementById('taskSelect')?.value||null,subject:document.getElementById('subjInput')?.value||''};
   document.getElementById('scoreBox').style.display='block';
-  if(msg)msg.textContent='Kaydetmek için odak puanını seç (1-5).';
 }
 async function saveScore(n){
   if(!pendingSave)return;

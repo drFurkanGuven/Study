@@ -36,28 +36,47 @@
   <section class="panel" id="panel-odak">
     <div class="odak-grid">
       <div class="card timer-card">
-        <input id="goalInput" placeholder="Bu odakta ne bitecek? (örn: Ünite 3 özet)" maxlength="160">
-        <div class="frow">
-          <select id="taskSelect">
-            <option value="">Görev seç (isteğe bağlı)</option>
-            {% for t in open_tasks %}<option value="{{ t['id'] }}" data-subj="{{ t['subject'] }}">{{ t['title'] }}</option>{% endfor %}
-          </select>
-          <input id="subjInput" placeholder="ders" maxlength="60">
-        </div>
-        <div class="pom">
-          <div id="timer">25:00</div>
-          <div class="row wrap-row">
-            <button class="btn chip" onclick="setLen(25)">25</button>
-            <button class="btn chip" onclick="setLen(45)">45</button>
-            <button class="btn chip" onclick="setLen(50)">50</button>
-            <button class="btn chip" onclick="setLen(5)">5 mola</button>
-            <button class="btn chip" onclick="setLen(15)">15 mola</button>
+        <div id="setupView">
+          <input id="goalInput" placeholder="Bu odakta ne bitecek? (örn: Ünite 3 özet)" maxlength="160">
+          <div class="frow">
+            <select id="taskSelect">
+              <option value="">Görev seç (isteğe bağlı)</option>
+              {% for t in open_tasks %}<option value="{{ t['id'] }}" data-subj="{{ t['subject'] }}">{{ t['title'] }}</option>{% endfor %}
+            </select>
+            <input id="subjInput" placeholder="ders" maxlength="60">
           </div>
-          <div class="row">
-            <button class="btn primary grow" id="startBtn" onclick="toggleTimer()">Başla</button>
-            <button class="btn" onclick="resetTimer()">Sıfırla</button>
+          <p class="lbl">Odak süresi</p>
+          <div class="dur-grid">
+            <button class="btn chip sel" onclick="setLen(25,'focus',this)">25</button>
+            <button class="btn chip" onclick="setLen(15,'focus',this)">15</button>
+            <button class="btn chip" onclick="setLen(20,'focus',this)">20</button>
+            <button class="btn chip" onclick="setLen(30,'focus',this)">30</button>
+            <button class="btn chip" onclick="setLen(45,'focus',this)">45</button>
+            <button class="btn chip" onclick="setLen(50,'focus',this)">50</button>
+            <button class="btn chip" onclick="setLen(60,'focus',this)">60</button>
+            <button class="btn chip" onclick="setLen(90,'focus',this)">90</button>
           </div>
+          <p class="lbl">Mola</p>
+          <div class="dur-grid">
+            <button class="btn chip" onclick="setLen(5,'break',this)">5</button>
+            <button class="btn chip" onclick="setLen(15,'break',this)">15</button>
+          </div>
+          <button class="btn primary block big-start" onclick="toggleTimer()">Başla</button>
           <p class="muted" id="pomMsg">Bitince otomatik kaydedilir (+2 XP/dk).</p>
+        </div>
+        <div id="focusView" hidden>
+          <div class="fstate" id="fState">Odak</div>
+          <div class="fring">
+            <svg viewBox="0 0 260 260">
+              <circle cx="130" cy="130" r="112" class="trk"/>
+              <circle cx="130" cy="130" r="112" class="fil" id="ringFil"/>
+            </svg>
+            <div class="ftimer" id="timer">25:00</div>
+          </div>
+          <div class="goal-line" id="goalLine"></div>
+          <div class="dots" id="cycleDots" data-chain="{{ chain }}"></div>
+          <button class="pause-btn" id="pauseBtn" onclick="toggleTimer()">❚❚</button>
+          <button class="giveup" onclick="giveUp()">vazgeç</button>
           <div id="scoreBox" style="display:none">
             <p>Odak nasıldı?</p>
             <div class="row">
