@@ -34,52 +34,54 @@
 <main class="wrap">
 
   <!-- ODAK -->
-  <section class="card panel active" id="panel-odak">
-    <div class="odak-top">
-      <div class="ring" style="--p:{{ ring_pct }}">
-        <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" class="bg"/><circle cx="30" cy="30" r="26" class="fg"/></svg>
-        <div class="ring-t"><strong>{{ my.today_min }}'</strong><small>/{{ daily_goal }}'</small></div>
+  <section class="panel" id="panel-odak">
+    <div class="odak-grid">
+      <div class="card timer-card">
+        <input id="goalInput" placeholder="Bu odakta ne bitecek? (örn: Ünite 3 özet)" maxlength="160">
+        <div class="row wrap-row">
+          <select id="taskSelect">
+            <option value="">Görev seç (isteğe bağlı)</option>
+            {% for t in open_tasks %}<option value="{{ t['id'] }}" data-subj="{{ t['subject'] }}">{{ t['title'] }}</option>{% endfor %}
+          </select>
+          <input id="subjInput" placeholder="ders" maxlength="60" style="max-width:130px">
+        </div>
+        <div class="pom">
+          <div id="timer">25:00</div>
+          <div class="row wrap-row">
+            <button class="btn chip" onclick="setLen(25)">25</button>
+            <button class="btn chip" onclick="setLen(45)">45</button>
+            <button class="btn chip" onclick="setLen(50)">50</button>
+            <button class="btn chip" onclick="setLen(5)">5 mola</button>
+            <button class="btn chip" onclick="setLen(15)">15 mola</button>
+          </div>
+          <div class="row">
+            <button class="btn primary grow" id="startBtn" onclick="toggleTimer()">Başla</button>
+            <button class="btn" onclick="resetTimer()">Sıfırla</button>
+          </div>
+          <p class="muted" id="pomMsg">Bitince otomatik kaydedilir (+2 XP/dk).</p>
+          <div id="scoreBox" style="display:none">
+            <p>Odak nasıldı?</p>
+            <div class="row">
+              <button class="btn chip" onclick="saveScore(1)">1</button>
+              <button class="btn chip" onclick="saveScore(2)">2</button>
+              <button class="btn chip" onclick="saveScore(3)">3</button>
+              <button class="btn chip" onclick="saveScore(4)">4</button>
+              <button class="btn chip" onclick="saveScore(5)">5★</button>
+            </div>
+          </div>
+        </div>
       </div>
-      <div class="odak-meta">
-        <div class="stats">
+      <div class="card day-card">
+        <div class="ring" style="--p:{{ ring_pct }}">
+          <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" class="bg"/><circle cx="30" cy="30" r="26" class="fg"/></svg>
+          <div class="ring-t"><strong>{{ my.today_min }}'</strong><small>/{{ daily_goal }}'</small></div>
+        </div>
+        <div class="stats col">
           <div class="stat"><span>{{ my.today_xp }}</span><label>bugün XP</label></div>
           <div class="stat"><span>{{ my.streak }}🔥</span><label>gün seri</label></div>
           <div class="stat"><span>{{ chain }}/4</span><label>zincir</label></div>
         </div>
         {% if chain >= 4 %}<p class="lead me">Zincir tamam — uzun molayı hak ettin.</p>{% endif %}
-      </div>
-    </div>
-    <input id="goalInput" placeholder="Bu odakta ne bitecek? (örn: Ünite 3 özet)" maxlength="160">
-    <div class="row wrap-row">
-      <select id="taskSelect">
-        <option value="">Görev seç (isteğe bağlı)</option>
-        {% for t in open_tasks %}<option value="{{ t['id'] }}" data-subj="{{ t['subject'] }}">{{ t['title'] }}</option>{% endfor %}
-      </select>
-      <input id="subjInput" placeholder="ders" maxlength="60" style="max-width:130px">
-    </div>
-    <div class="pom">
-      <div id="timer">25:00</div>
-      <div class="row wrap-row">
-        <button class="btn chip" onclick="setLen(25)">25</button>
-        <button class="btn chip" onclick="setLen(45)">45</button>
-        <button class="btn chip" onclick="setLen(50)">50</button>
-        <button class="btn chip" onclick="setLen(5)">5 mola</button>
-        <button class="btn chip" onclick="setLen(15)">15 mola</button>
-      </div>
-      <div class="row">
-        <button class="btn primary grow" id="startBtn" onclick="toggleTimer()">Başla</button>
-        <button class="btn" onclick="resetTimer()">Sıfırla</button>
-      </div>
-      <p class="muted" id="pomMsg">Bitince otomatik kaydedilir (+2 XP/dk).</p>
-      <div id="scoreBox" style="display:none">
-        <p>Odak nasıldı?</p>
-        <div class="row">
-          <button class="btn chip" onclick="saveScore(1)">1</button>
-          <button class="btn chip" onclick="saveScore(2)">2</button>
-          <button class="btn chip" onclick="saveScore(3)">3</button>
-          <button class="btn chip" onclick="saveScore(4)">4</button>
-          <button class="btn chip" onclick="saveScore(5)">5★</button>
-        </div>
       </div>
     </div>
   </section>
@@ -109,34 +111,44 @@
   </section>
 
   <!-- VERİ -->
-  <section class="card panel" id="panel-istatistik">
-    <h2>Verilerim</h2>
-    <div class="progress"><div style="width:{{ progress }}%"></div></div>
-    <p class="muted">Lv {{ level }} {{ title }} · Toplam {{ my.total_xp }} XP · {{ my.total_min }} dk · {{ my.done_tasks }}/{{ my.total_tasks }} görev
-      {% if favg['c'] %} · Odak kalitesi {{ "%.1f"|format(favg['a']) }}★ ({{ favg['c'] }} oturum){% endif %}</p>
-    <form action="/api/settings" method="post" class="row">
-      <label class="muted">Günlük hedef (dk):</label>
-      <input name="daily_goal" type="number" value="{{ daily_goal }}" min="15" max="720" style="max-width:90px">
-      <button class="btn small" type="submit">Kaydet</button>
-    </form>
-    <h3>Ders dağılımı</h3>
-    {% for s in subs %}
-    <div class="sub-row"><span>{{ s.s }}</span><div class="progress grow"><div style="width:{{ (s.m/(subs[0].m)*100)|int if subs[0].m else 0 }}%"></div></div><small>{{ s.m }}'</small></div>
-    {% else %}
-    <p class="muted">Henüz etiketli oturum yok.</p>
-    {% endfor %}
-    <h3>Son 7 gün (dk)</h3>
-    <div class="bars">
-      {% for d in my.last7 %}
-      <div class="bar" title="{{ d.date }}: {{ d.minutes }} dk">
-        <div style="height:{{ (d.minutes/60*100) if d.minutes < 60 else 100 }}%"></div>
-        <small>{{ d.date }}<br>{{ d.minutes }}'</small>
+  <section class="panel" id="panel-istatistik">
+    <div class="veri-grid">
+      <div class="card">
+        <h2>Seviye</h2>
+        <div class="progress"><div style="width:{{ progress }}%"></div></div>
+        <p class="muted">Lv {{ level }} {{ title }} · Toplam {{ my.total_xp }} XP · {{ my.total_min }} dk · {{ my.done_tasks }}/{{ my.total_tasks }} görev
+          {% if favg['c'] %} · Odak {{ "%.1f"|format(favg['a']) }}★ ({{ favg['c'] }}){% endif %}</p>
+        <form action="/api/settings" method="post" class="row">
+          <label class="muted">Günlük hedef:</label>
+          <input name="daily_goal" type="number" value="{{ daily_goal }}" min="15" max="720" style="max-width:80px">
+          <button class="btn small" type="submit">Kaydet</button>
+        </form>
       </div>
-      {% endfor %}
+      <div class="card">
+        <h2>Ders dağılımı</h2>
+        {% for s in subs %}
+        <div class="sub-row"><span>{{ s.s }}</span><div class="progress grow"><div style="width:{{ (s.m/(subs[0].m)*100)|int if subs[0].m else 0 }}%"></div></div><small>{{ s.m }}'</small></div>
+        {% else %}
+        <p class="muted">Henüz etiketli oturum yok.</p>
+        {% endfor %}
+      </div>
+      <div class="card">
+        <h2>Son 7 gün</h2>
+        <div class="bars">
+          {% for d in my.last7 %}
+          <div class="bar" title="{{ d.date }}: {{ d.minutes }} dk">
+            <div style="height:{{ (d.minutes/60*100) if d.minutes < 60 else 100 }}%"></div>
+            <small>{{ d.date }}<br>{{ d.minutes }}'</small>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="card">
+        <h2>Haftalık özet</h2>
+        <div class="summary" id="sumCard">◉ Odak — {{ me['username'] }}: {{ my.week_min }} dk · {{ my.week_xp }} XP · {{ my.streak }} gün seri · Lv {{ level }}</div>
+        <button class="btn small" onclick="copySummary()">Metni kopyala</button>
+      </div>
     </div>
-    <h3>Haftalık özet</h3>
-    <div class="summary" id="sumCard">◉ Odak haftalık özet — {{ me['username'] }}: {{ my.week_min }} dk odak · {{ my.week_xp }} XP · {{ my.streak }} gün seri · Lv {{ level }} {{ title }}</div>
-    <button class="btn small" onclick="copySummary()">Metni kopyala</button>
   </section>
 
   <!-- EKİP -->
