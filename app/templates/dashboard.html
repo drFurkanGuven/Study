@@ -88,17 +88,42 @@
   <!-- EKİP -->
   <section class="panel" id="panel-ekip">
     <div class="card">
-      <h2>Haftalık ekip hedefi</h2>
-      <p><strong>{{ joint_min }} / {{ joint_goal }} dk</strong> (%{{ joint_pct }})</p>
-      <div class="progress big"><div style="width:{{ joint_pct }}%"></div></div>
-      {% if joint_pct >= 100 %}
-      <p>Hedef tamamlandı.</p>
-      {% else %}
-      <p class="muted">{{ joint_goal - joint_min }} dk kaldı.</p>
+      <h2>Davet kodum</h2>
+      <div class="row"><code class="code">{{ me['invite_code'] }}</code></div>
+      <p class="muted">Kodunu sadece güvendiğin kişiyle paylaş. Arkadaşlıklar ikilidir ve gizlidir: arkadaşların birbirini göremez.</p>
+      <form action="/api/friends/add" method="post" class="task-add">
+        <input name="code" placeholder="Arkadaşının kodu (örn: A3K9P2)" maxlength="12" required style="text-transform:uppercase">
+        <button class="btn primary" type="submit">Ekle</button>
+      </form>
+      {% if req_out %}
+      <p class="muted">Bekleyen isteklerin: {% for r in req_out %}<span class="badge">{{ r['to_name'] }}</span> {% endfor %}</p>
       {% endif %}
     </div>
+
+    {% if req_in %}
     <div class="card">
-      <h2>Haftalık sıralama</h2>
+      <h2>Gelen istekler</h2>
+      {% for r in req_in %}
+      <div class="row duel-row">
+        <strong>{{ r['from_name'] }}</strong>
+        <span class="row">
+          <form action="/api/friends/{{ r['id'] }}/accept" method="post"><button class="btn small primary" type="submit">Kabul</button></form>
+          <form action="/api/friends/{{ r['id'] }}/reject" method="post"><button class="btn small danger" type="submit">Reddet</button></form>
+        </span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <h2>Haftalık hedefim</h2>
+      <p><strong>{{ joint_min }} / {{ joint_goal }} dk</strong> (%{{ joint_pct }})</p>
+      <div class="progress big"><div style="width:{{ joint_pct }}%"></div></div>
+      <p class="muted">Sen + arkadaşların toplamı. Kimse başkasını göremez.</p>
+    </div>
+
+    <div class="card">
+      <h2>Sıralamam</h2>
       <ol class="board">
         {% for b in board %}
         <li class="{{ 'me' if b.is_me else '' }}">
@@ -107,28 +132,56 @@
         </li>
         {% endfor %}
       </ol>
+      <p class="muted">Sadece sen ve direkt arkadaşların.</p>
     </div>
-    {% for p in partners %}
-    <div class="card">
-      <h2>{{ p.user['username'] }} <small class="muted">bugün {{ p.stats.today_min }}' · {{ p.stats.today_xp }} XP · Lv{{ p.level }}</small></h2>
-      <form action="/api/poke" method="post" class="task-add">
-        <input type="hidden" name="to_user" value="{{ p.user['id'] }}">
-        <select name="message">
-          <option value="preset:devam">Güzel gidiyorsun, devam et!</option>
-          <option value="preset:mola-bit">Mola bitti, bir pomodoro daha?</option>
-          <option value="preset:seri">Güzel seri yakaladın, bozma!</option>
-          <option value="preset:yaris">Rekabete hazır mısın? Hodri meydan!</option>
+
+    {% for f in friends %}
+    <div class="card duel">
+      <div class="row duel-row">
+        <h2>{{ f.user['username'] }} <small class="muted">Lv{{ f.level }}</small></h2>
+        <form action="/api/friends/{{ f.fid }}/remove" method="post" onsubmit="return confirm('Arkadaşlıktan çıkarılsın mı?')"><button class="btn small danger" type="submit">Çıkar</button></form>
+      </div>
+      <div class="duel-score">
+        <div class="side {{ 'win' if f.leader=='me' else '' }}"><span>{{ f.my_week }}</span><label>sen (hafta XP)</label></div>
+        <div class="vs">VS</div>
+        <div class="side {{ 'win' if f.leader=='them' else '' }}"><span>{{ f.their_week }}</span><label>{{ f.user['username'] }}</label></div>
+      </div>
+      {% if f.leader=='me' %}<p class="lead me">Öndesin — yaptırımı sen koyarsın.</p>
+      {% elif f.leader=='them' %}<p class="lead them">{{ f.user['username'] }} önde.</p>
+      {% else %}<p class="lead tie">Berabere.</p>{% endif %}
+
+      {% if f.wager %}
+        {% if f.wager['status']=='proposed' %}
+          {% if f.wager['proposer']==me['id'] %}
+          <p class="muted">İddia önerin onay bekliyor: <strong>{{ f.wager['text'] }}</strong></p>
+          {% else %}
+          <p>İddia önerisi: <strong>{{ f.wager['text'] }}</strong></p>
+          <div class="row">
+            <form action="/api/wager/{{ f.wager['id'] }}/accept" method="post"><button class="btn small primary" type="submit">Kabul et</button></form>
+            <form action="/api/wager/{{ f.wager['id'] }}/decline" method="post"><button class="btn small danger" type="submit">Reddet</button></form>
+          </div>
+          {% endif %}
+        {% else %}
+        <p class="wager">Aktif iddia: <strong>{{ f.wager['text'] }}</strong> <small class="muted">(bu hafta, kaybeden yapar)</small></p>
+        {% endif %}
+      {% else %}
+      <form action="/api/wager/propose" method="post" class="task-add">
+        <input type="hidden" name="friendship_id" value="{{ f.fid }}">
+        <select name="text">
+          {% for w in wager_presets %}<option value="{{ w }}">{{ w }}</option>{% endfor %}
         </select>
-        <button class="btn primary" type="submit">Gönder</button>
+        <button class="btn primary" type="submit">İddiaya gir</button>
       </form>
+      {% endif %}
+
       <form action="/api/poke" method="post" class="task-add" style="margin-top:8px">
-        <input type="hidden" name="to_user" value="{{ p.user['id'] }}">
-        <input name="message" placeholder="Kendi mesajın..." maxlength="200" required>
-        <button class="btn" type="submit">Gönder</button>
+        <input type="hidden" name="to_user" value="{{ f.user['id'] }}">
+        <input name="message" placeholder="{{ f.user['username'] }} adlı kişiye mesaj..." maxlength="200" required>
+        <button class="btn" type="submit">Dürt</button>
       </form>
     </div>
     {% else %}
-    <div class="card"><p class="muted">Ekipte henüz başka kimse yok. Arkadaşın kayıt olunca burada görünecek.</p></div>
+    <div class="card"><p class="muted">Henüz arkadaş yok. Kodunu paylaş, düello başlasın.</p></div>
     {% endfor %}
   </section>
 

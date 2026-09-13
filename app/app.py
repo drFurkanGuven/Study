@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, redirect, url_for, session, g, jsonify
 import sqlite3
 import os
+import secrets
+import string
 from datetime import datetime, date, timedelta
 from werkzeug.security import generate_password_hash, check_password_hash
 from functools import wraps
@@ -65,9 +67,43 @@ def init_db():
         FOREIGN KEY(from_user) REFERENCES users(id),
         FOREIGN KEY(to_user) REFERENCES users(id)
     );
+    CREATE TABLE IF NOT EXISTS friendships (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        requester INTEGER NOT NULL,
+        addressee INTEGER NOT NULL,
+        status TEXT DEFAULT 'pending',
+        created_at TEXT NOT NULL,
+        UNIQUE(requester, addressee),
+        FOREIGN KEY(requester) REFERENCES users(id),
+        FOREIGN KEY(addressee) REFERENCES users(id)
+    );
+    CREATE TABLE IF NOT EXISTS wagers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        friendship_id INTEGER NOT NULL,
+        proposer INTEGER NOT NULL,
+        text TEXT NOT NULL,
+        status TEXT DEFAULT 'proposed',
+        winner_id INTEGER,
+        week_start TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(friendship_id) REFERENCES friendships(id),
+        FOREIGN KEY(proposer) REFERENCES users(id)
+    );
     """)
+    # eski DB'lere davet kodu kolonu ekle + kodları doldur
+    cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
+    if "invite_code" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN invite_code TEXT")
+    db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite ON users(invite_code)")
+    for r in db.execute("SELECT id FROM users WHERE invite_code IS NULL").fetchall():
+        db.execute("UPDATE users SET invite_code=? WHERE id=?", (make_code(), r[0]))
     db.commit()
     db.close()
+
+
+def make_code(n=6):
+    alpha = string.ascii_uppercase + string.digits
+    return "".join(secrets.choice(alpha) for _ in range(n))
 
 # ---------- helpers ----------
 def login_required(f):
@@ -154,6 +190,28 @@ def level_for_xp(xp):
     title = titles[min(level - 1, len(titles) - 1)]
     return level, int(progress), title
 
+
+def friend_ids(user_id):
+    """Kabul edilmiş ikili arkadaşlıklar: sadece direkt arkadaşlar (gizli)."""
+    db = get_db()
+    rows = db.execute(
+        """SELECT CASE WHEN requester=? THEN addressee ELSE requester END AS fid
+           FROM friendships WHERE status='accepted' AND (requester=? OR addressee=?)""",
+        (user_id, user_id, user_id)).fetchall()
+    return [r["fid"] for r in rows]
+
+
+def are_friends(a, b):
+    db = get_db()
+    return db.execute(
+        """SELECT 1 FROM friendships WHERE status='accepted'
+           AND ((requester=? AND addressee=?) OR (requester=? AND addressee=?)) LIMIT 1""",
+        (a, b, b, a)).fetchone() is not None
+
+
+def week_start():
+    return (date.today() - timedelta(days=date.today().weekday())).isoformat()
+
 # ---------- routes ----------
 @app.route("/")
 def index():
@@ -172,8 +230,8 @@ def register():
         else:
             db = get_db()
             try:
-                db.execute("INSERT INTO users (username, password_hash, created_at) VALUES (?,?,?)",
-                           (u, generate_password_hash(p), datetime.now().isoformat()))
+                db.execute("INSERT INTO users (username, password_hash, created_at, invite_code) VALUES (?,?,?,?)",
+                           (u, generate_password_hash(p), datetime.now().isoformat(), make_code()))
                 db.commit()
                 return redirect(url_for("login"))
             except sqlite3.IntegrityError:
@@ -211,27 +269,55 @@ def dashboard():
     tasks = db.execute("SELECT * FROM tasks WHERE user_id=? ORDER BY done, id DESC",
                        (me["id"],)).fetchall()
 
-    others = db.execute("SELECT * FROM users WHERE id != ? ORDER BY id", (me["id"],)).fetchall()
-    partners = []
-    for o in others:
-        st = user_stats(o["id"])
+    # --- gizli ikili arkadaşlıklar: sadece direkt arkadaşlarım ---
+    fids = friend_ids(me["id"])
+    friends = []
+    for fid in fids:
+        o = db.execute("SELECT * FROM users WHERE id=?", (fid,)).fetchone()
+        if not o:
+            continue
+        st = user_stats(fid)
         olvl, _, otitle = level_for_xp(st["total_xp"])
-        partners.append({"user": o, "stats": st, "level": olvl, "title": otitle})
+        fs = db.execute(
+            """SELECT * FROM friendships WHERE status='accepted'
+               AND ((requester=? AND addressee=?) OR (requester=? AND addressee=?))""",
+            (me["id"], fid, fid, me["id"])).fetchone()
+        # aktif iddia (bu haftanın veya kabul bekleyen)
+        wager = db.execute(
+            """SELECT * FROM wagers WHERE friendship_id=? AND status IN ('proposed','accepted')
+               ORDER BY id DESC LIMIT 1""", (fs["id"],)).fetchone()
+        my_w = my["week_xp"]
+        th_w = st["week_xp"]
+        leader = "me" if my_w > th_w else ("them" if th_w > my_w else "tie")
+        friends.append({"user": o, "stats": st, "level": olvl, "title": otitle,
+                        "fid": fs["id"], "wager": wager,
+                        "my_week": my_w, "their_week": th_w, "leader": leader})
 
-    # liderlik: haftalık XP'ye göre herkes
-    all_users = db.execute("SELECT * FROM users ORDER BY id").fetchall()
-    board = []
-    for u in all_users:
-        st = user_stats(u["id"])
-        lv, _, ti = level_for_xp(st["total_xp"])
-        board.append({"username": u["username"], "id": u["id"],
-                      "week_xp": st["week_xp"], "today_min": st["today_min"],
-                      "streak": st["streak"], "level": lv, "title": ti,
-                      "is_me": u["id"] == me["id"]})
+    # istekler
+    req_in = db.execute(
+        """SELECT f.*, u.username AS from_name FROM friendships f
+           JOIN users u ON u.id=f.requester
+           WHERE f.addressee=? AND f.status='pending' ORDER BY f.id DESC""",
+        (me["id"],)).fetchall()
+    req_out = db.execute(
+        """SELECT f.*, u.username AS to_name FROM friendships f
+           JOIN users u ON u.id=f.addressee
+           WHERE f.requester=? AND f.status='pending' ORDER BY f.id DESC""",
+        (me["id"],)).fetchall()
+
+    # sıralama: sadece ben + direkt arkadaşlarım (başkası birbirini göremez)
+    board = [{"username": me["username"], "id": me["id"], "week_xp": my["week_xp"],
+              "today_min": my["today_min"], "streak": my["streak"],
+              "level": lvl, "title": title, "is_me": True}]
+    for f in friends:
+        board.append({"username": f["user"]["username"], "id": f["user"]["id"],
+                      "week_xp": f["stats"]["week_xp"], "today_min": f["stats"]["today_min"],
+                      "streak": f["stats"]["streak"], "level": f["level"], "title": f["title"],
+                      "is_me": False})
     board.sort(key=lambda x: x["week_xp"], reverse=True)
 
-    # ortak haftalık hedef
-    joint_week_min = sum(user_stats(u["id"])["week_min"] for u in all_users)
+    # ekip toplamı (sadece sayı, isim yok)
+    joint_week_min = my["week_min"] + sum(f["stats"]["week_min"] for f in friends)
     joint_pct = min(100, int(joint_week_min / WEEKLY_JOINT_GOAL_MIN * 100)) if WEEKLY_JOINT_GOAL_MIN else 0
 
     # gelen / giden dürtmeler
@@ -244,9 +330,11 @@ def dashboard():
     db.commit()
 
     return render_template("dashboard.html", me=me, my=my, level=lvl, progress=prog,
-                           title=title, tasks=tasks, partners=partners, board=board,
+                           title=title, tasks=tasks, friends=friends, board=board,
+                           req_in=req_in, req_out=req_out,
                            joint_min=joint_week_min, joint_goal=WEEKLY_JOINT_GOAL_MIN,
-                           joint_pct=joint_pct, pokes=pokes_in, task_xp=TASK_XP)
+                           joint_pct=joint_pct, pokes=pokes_in, task_xp=TASK_XP,
+                           wager_presets=WAGER_PRESETS)
 
 @app.route("/api/tasks", methods=["POST"])
 @login_required
@@ -312,10 +400,122 @@ def poke():
         msg = presets.get(msg[7:], msg)
     if not to_id or not msg:
         return redirect(url_for("dashboard"))
+    if not are_friends(session["user_id"], int(to_id)):
+        return redirect(url_for("dashboard"))
     db = get_db()
     db.execute("INSERT INTO pokes (from_user, to_user, message, created_at) VALUES (?,?,?,?)",
                (session["user_id"], int(to_id), msg, datetime.now().isoformat()))
     db.commit()
+    return redirect(url_for("dashboard"))
+
+
+WAGER_PRESETS = [
+    "Kaybeden kahve ısmarlar",
+    "Kaybeden 25 dk extra odak yapar",
+    "Kazanan film/dizi seçer",
+    "Kaybeden tatlı alır",
+]
+
+
+@app.route("/api/friends/add", methods=["POST"])
+@login_required
+def friend_add():
+    code = request.form.get("code", "").strip().upper()
+    db = get_db()
+    me = current_user()
+    if me["invite_code"] == code or not code:
+        return redirect(url_for("dashboard"))
+    target = db.execute("SELECT * FROM users WHERE invite_code=?", (code,)).fetchone()
+    if not target:
+        return redirect(url_for("dashboard"))
+    a, b = session["user_id"], target["id"]
+    exists = db.execute(
+        """SELECT 1 FROM friendships
+           WHERE (requester=? AND addressee=?) OR (requester=? AND addressee=?) LIMIT 1""",
+        (a, b, b, a)).fetchone()
+    if not exists:
+        db.execute("INSERT INTO friendships (requester, addressee, status, created_at) VALUES (?,?,'pending',?)",
+                   (a, b, datetime.now().isoformat()))
+        db.commit()
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/api/friends/<int:fid>/accept", methods=["POST"])
+@login_required
+def friend_accept(fid):
+    db = get_db()
+    db.execute("UPDATE friendships SET status='accepted' WHERE id=? AND addressee=?",
+               (fid, session["user_id"]))
+    db.commit()
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/api/friends/<int:fid>/reject", methods=["POST"])
+@login_required
+def friend_reject(fid):
+    db = get_db()
+    db.execute("DELETE FROM friendships WHERE id=? AND (requester=? OR addressee=?)",
+               (fid, session["user_id"], session["user_id"]))
+    db.commit()
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/api/friends/<int:fid>/remove", methods=["POST"])
+@login_required
+def friend_remove(fid):
+    db = get_db()
+    db.execute("DELETE FROM friendships WHERE id=? AND (requester=? OR addressee=?)",
+               (fid, session["user_id"], session["user_id"]))
+    db.execute("DELETE FROM wagers WHERE friendship_id=?", (fid,))
+    db.commit()
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/api/wager/propose", methods=["POST"])
+@login_required
+def wager_propose():
+    fid = int(request.form.get("friendship_id", 0))
+    text = request.form.get("text", "").strip()[:160]
+    if not fid or not text:
+        return redirect(url_for("dashboard"))
+    db = get_db()
+    fs = db.execute("SELECT * FROM friendships WHERE id=? AND status='accepted'", (fid,)).fetchone()
+    if not fs or session["user_id"] not in (fs["requester"], fs["addressee"]):
+        return redirect(url_for("dashboard"))
+    live = db.execute("SELECT 1 FROM wagers WHERE friendship_id=? AND status IN ('proposed','accepted') LIMIT 1",
+                      (fid,)).fetchone()
+    if live:
+        return redirect(url_for("dashboard"))
+    db.execute("""INSERT INTO wagers (friendship_id, proposer, text, status, week_start, created_at)
+                  VALUES (?,?,?,'proposed',?,?)""",
+               (fid, session["user_id"], text, week_start(), datetime.now().isoformat()))
+    db.commit()
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/api/wager/<int:wid>/accept", methods=["POST"])
+@login_required
+def wager_accept(wid):
+    db = get_db()
+    w = db.execute("SELECT * FROM wagers WHERE id=? AND status='proposed'", (wid,)).fetchone()
+    if w:
+        fs = db.execute("SELECT * FROM friendships WHERE id=?", (w["friendship_id"],)).fetchone()
+        if fs and session["user_id"] in (fs["requester"], fs["addressee"]) and session["user_id"] != w["proposer"]:
+            db.execute("UPDATE wagers SET status='accepted' WHERE id=?", (wid,))
+            db.commit()
+    return redirect(url_for("dashboard"))
+
+
+@app.route("/api/wager/<int:wid>/decline", methods=["POST"])
+@login_required
+def wager_decline(wid):
+    db = get_db()
+    w = db.execute("SELECT * FROM wagers WHERE id=? AND status='proposed'", (wid,)).fetchone()
+    if w:
+        fs = db.execute("SELECT * FROM friendships WHERE id=?", (w["friendship_id"],)).fetchone()
+        if fs and session["user_id"] in (fs["requester"], fs["addressee"]):
+            db.execute("DELETE FROM wagers WHERE id=?", (wid,))
+            db.commit()
     return redirect(url_for("dashboard"))
 
 if __name__ == "__main__":
