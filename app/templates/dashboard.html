@@ -101,33 +101,6 @@
             </div>
           </div>
       </div>
-      <div class="card day-card">
-        <svg class="plant" width="72" height="60" viewBox="0 0 36 30" shape-rendering="crispEdges">
-          <rect x="6" y="22" width="24" height="7" fill="#5b3a1e"/>
-          <rect x="6" y="22" width="24" height="2" fill="#7a4f28"/>
-          {% if my.today_min >= 90 %}
-          <rect x="16" y="6" width="4" height="16" fill="#2e7d46"/>
-          <rect x="8" y="10" width="8" height="6" fill="#3da35d"/><rect x="20" y="8" width="8" height="7" fill="#3da35d"/>
-          <rect x="12" y="2" width="12" height="8" fill="#46b264"/><rect x="10" y="6" width="4" height="4" fill="#3da35d"/>
-          {% elif my.today_min >= 30 %}
-          <rect x="16" y="12" width="4" height="10" fill="#2e7d46"/>
-          <rect x="9" y="14" width="7" height="5" fill="#3da35d"/><rect x="20" y="12" width="7" height="6" fill="#46b264"/>
-          {% elif my.today_min >= 1 %}
-          <rect x="17" y="16" width="2" height="6" fill="#2e7d46"/>
-          <rect x="12" y="14" width="5" height="3" fill="#46b264"/><rect x="19" y="12" width="5" height="3" fill="#3da35d"/>
-          {% endif %}
-        </svg>
-        <div class="ring" style="--p:{{ ring_pct }}">
-          <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" class="bg"/><circle cx="30" cy="30" r="26" class="fg"/></svg>
-          <div class="ring-t"><strong>{{ my.today_min }}'</strong><small>/{{ daily_goal }}'</small></div>
-        </div>
-        <div class="stats">
-          <div class="stat"><span>{{ my.today_xp }}</span><label>bugün XP</label></div>
-          <div class="stat"><span>{{ my.streak }}🔥</span><label>gün seri</label></div>
-          <div class="stat"><span>{{ chain }}/4</span><label>zincir</label></div>
-        </div>
-        {% if chain >= 4 %}<p class="lead me">Zincir tamam — uzun molayı hak ettin.</p>{% endif %}
-      </div>
     </div>
   </section>
 
@@ -158,6 +131,36 @@
   <!-- VERİ -->
   <section class="panel" id="panel-istatistik">
     <div class="veri-grid">
+      <div class="card">
+        <h2>Bugün</h2>
+        <div class="today-wrap">
+          <svg class="plant" width="72" height="60" viewBox="0 0 36 30" shape-rendering="crispEdges">
+            <rect x="6" y="22" width="24" height="7" fill="#5b3a1e"/>
+            <rect x="6" y="22" width="24" height="2" fill="#7a4f28"/>
+            {% if my.today_min >= 90 %}
+            <rect x="16" y="6" width="4" height="16" fill="#2e7d46"/>
+            <rect x="8" y="10" width="8" height="6" fill="#3da35d"/><rect x="20" y="8" width="8" height="7" fill="#3da35d"/>
+            <rect x="12" y="2" width="12" height="8" fill="#46b264"/><rect x="10" y="6" width="4" height="4" fill="#3da35d"/>
+            {% elif my.today_min >= 30 %}
+            <rect x="16" y="12" width="4" height="10" fill="#2e7d46"/>
+            <rect x="9" y="14" width="7" height="5" fill="#3da35d"/><rect x="20" y="12" width="7" height="6" fill="#46b264"/>
+            {% elif my.today_min >= 1 %}
+            <rect x="17" y="16" width="2" height="6" fill="#2e7d46"/>
+            <rect x="12" y="14" width="5" height="3" fill="#46b264"/><rect x="19" y="12" width="5" height="3" fill="#3da35d"/>
+            {% endif %}
+          </svg>
+          <div class="ring" style="--p:{{ ring_pct }}">
+            <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" class="bg"/><circle cx="30" cy="30" r="26" class="fg"/></svg>
+            <div class="ring-t"><strong>{{ my.today_min }}'</strong><small>/{{ daily_goal }}'</small></div>
+          </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><span>{{ my.today_xp }}</span><label>bugün XP</label></div>
+          <div class="stat"><span>{{ my.streak }}🔥</span><label>gün seri</label></div>
+          <div class="stat"><span>{{ chain }}/4</span><label>zincir</label></div>
+        </div>
+        {% if chain >= 4 %}<p class="lead me">Zincir tamam — uzun molayı hak ettin.</p>{% endif %}
+      </div>
       <div class="card">
         <h2>Seviye</h2>
         <div class="progress"><div style="width:{{ progress }}%"></div></div>
@@ -190,7 +193,7 @@
       </div>
       <div class="card">
         <h2>Haftalık özet</h2>
-        <div class="summary" id="sumCard">◉ Odak — {{ me['username'] }}: {{ my.week_min }} dk · {{ my.week_xp }} XP · {{ my.streak }} gün seri · Lv {{ level }}</div>
+        <div class="summary" id="sumCard">ODAK haftalık özet — {{ me['username'] }}: {{ my.week_min }} dk · {{ my.week_xp }} XP · {{ my.streak }} gün seri · Lv {{ level }}</div>
         <button class="btn small" onclick="copySummary()">Metni kopyala</button>
       </div>
     </div>
