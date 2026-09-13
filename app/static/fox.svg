@@ -1,24 +1,36 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 12" shape-rendering="crispEdges">
-  <!-- kulaklar -->
-  <rect x="2" y="0" width="2" height="2" fill="#222"/>
-  <rect x="6" y="0" width="2" height="2" fill="#222"/>
-  <!-- kafa -->
-  <rect x="2" y="2" width="6" height="4" fill="#e8822a"/>
-  <rect x="2" y="5" width="6" height="1" fill="#fff"/>
-  <rect x="6" y="3" width="1" height="1" fill="#222"/>
-  <!-- govde -->
-  <rect x="8" y="4" width="4" height="4" fill="#e8822a"/>
-  <rect x="8" y="7" width="4" height="1" fill="#fff"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24" shape-rendering="crispEdges">
   <!-- kuyruk -->
-  <rect x="12" y="3" width="2" height="3" fill="#e8822a"/>
-  <rect x="14" y="3" width="2" height="3" fill="#fff"/>
-  <!-- bacaklar -->
-  <rect x="3" y="6" width="1" height="3" fill="#7a3f12"/>
-  <rect x="6" y="6" width="1" height="3" fill="#7a3f12"/>
-  <rect x="9" y="8" width="1" height="2" fill="#7a3f12"/>
-  <rect x="11" y="8" width="1" height="2" fill="#7a3f12"/>
-  <rect x="3" y="9" width="1" height="1" fill="#222"/>
-  <rect x="6" y="9" width="1" height="1" fill="#222"/>
-  <rect x="9" y="10" width="1" height="1" fill="#222"/>
-  <rect x="11" y="10" width="1" height="1" fill="#222"/>
+  <rect x="25" y="9" width="4" height="9" fill="#e8822a"/>
+  <rect x="29" y="9" width="3" height="9" fill="#ffffff"/>
+  <rect x="25" y="8" width="3" height="1" fill="#e8822a"/>
+  <rect x="26" y="18" width="2" height="1" fill="#c46a1c"/>
+  <!-- arka bacaklar -->
+  <rect x="19" y="16" width="2" height="6" fill="#7a3f12"/>
+  <rect x="23" y="16" width="2" height="6" fill="#7a3f12"/>
+  <rect x="19" y="22" width="2" height="2" fill="#222222"/>
+  <rect x="23" y="22" width="2" height="2" fill="#222222"/>
+  <!-- govde -->
+  <rect x="17" y="8" width="9" height="9" fill="#e8822a"/>
+  <rect x="17" y="8" width="2" height="9" fill="#c46a1c"/>
+  <rect x="21" y="14" width="5" height="3" fill="#ffffff"/>
+  <!-- on bacaklar -->
+  <rect x="8" y="13" width="2" height="9" fill="#7a3f12"/>
+  <rect x="13" y="13" width="2" height="9" fill="#7a3f12"/>
+  <rect x="8" y="22" width="2" height="2" fill="#222222"/>
+  <rect x="13" y="22" width="2" height="2" fill="#222222"/>
+  <!-- kafa -->
+  <rect x="5" y="4" width="13" height="10" fill="#e8822a"/>
+  <rect x="5" y="11" width="13" height="3" fill="#ffffff"/>
+  <!-- kulaklar -->
+  <rect x="5" y="0" width="4" height="5" fill="#e8822a"/>
+  <rect x="5" y="0" width="4" height="2" fill="#222222"/>
+  <rect x="14" y="0" width="4" height="5" fill="#e8822a"/>
+  <rect x="14" y="0" width="4" height="2" fill="#222222"/>
+  <!-- gozler -->
+  <rect x="8" y="7" width="2" height="3" fill="#222222"/>
+  <rect x="8" y="7" width="1" height="1" fill="#ffffff"/>
+  <rect x="14" y="7" width="2" height="3" fill="#222222"/>
+  <rect x="14" y="7" width="1" height="1" fill="#ffffff"/>
+  <!-- burun -->
+  <rect x="11" y="11" width="3" height="2" fill="#222222"/>
 </svg>
