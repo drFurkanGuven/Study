@@ -426,7 +426,7 @@ def gen_scenery(seed):
         R.append(f'<rect x="{fx}" y="{fy}" width="5" height="5" fill="{fc}"/><rect x="{fx+2}" y="{fy+5}" width="2" height="7" fill="{p["dark"]}"/>')
     for _ in range(rng.randrange(5, 9)):
         R.append(f'<rect x="{rng.randrange(W)}" y="{rng.randrange(400, 430)}" width="2" height="6" fill="{p["dark"]}"/>')
-    return ('<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450" viewBox="0 0 800 450" '
+    return ('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 800 450" '
             'preserveAspectRatio="xMidYMid slice" shape-rendering="crispEdges">' + "".join(R) + '</svg>')
 
 

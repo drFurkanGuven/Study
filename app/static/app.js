@@ -106,7 +106,7 @@ function rangeDur(v){setLen(parseInt(v,10),'focus',null);}
 function surprise(){
   const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let s='';for(let i=0;i<6;i++)s+=A[Math.floor(Math.random()*A.length)];
-  document.getElementById('surImg').src='/scenery/'+s+'.svg?v=2';
+  document.getElementById('surImg').src='/scenery/'+s+'.svg?v=3';
   document.getElementById('surSeed').value=s;
 }
 function paintModes(){

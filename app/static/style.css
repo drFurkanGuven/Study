@@ -21,9 +21,9 @@ body{
 }
 body.dark{background-image:radial-gradient(rgba(255,255,255,.06) 1.6px,transparent 1.7px)}
 /* ortak zemin: manzara tum sekmelerin altinda, pencere hissi yok */
-body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.32;
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;opacity:1;
   background:url(/static/scenery.svg) center bottom/cover no-repeat}
-body.dark::before{opacity:.2}
+body.dark::before{opacity:.9}
 .topbar,.tabs,.wrap,.announce{position:relative;z-index:1}
 @keyframes tabin{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 .panel.active{animation:tabin .18s ease-out}
