@@ -8,16 +8,16 @@
 </head>
 <body>
 <header class="topbar">
-  <div class="brand"><span class="logo-sm">◉ Odak</span> <span class="badge">Lv {{ level }} · {{ title }}</span></div>
+  <div class="brand"><span class="logo-sm"><i class="logodot"></i>Odak</span> <span class="badge">Lv {{ level }} · {{ title }}</span></div>
   <div class="userbox"><strong>{{ me['username'] }}</strong>{% if me['is_admin'] %} <a href="/admin" class="btn small">Yönetim</a>{% endif %} <a href="/logout" class="btn small">Çıkış</a></div>
 </header>
 
 <nav class="tabs" role="tablist">
-  <button class="tab active" data-tab="odak" role="tab">⏱<span>Odak</span></button>
-  <button class="tab" data-tab="gorev" role="tab">✓<span>Görev</span></button>
-  <button class="tab" data-tab="istatistik" role="tab">▦<span>Veri</span></button>
-  <button class="tab" data-tab="ekip" role="tab">◎<span>Ekip</span></button>
-  <button class="tab" data-tab="mesaj" role="tab">✉<span>Sohbet</span></button>
+  <button class="tab active" data-tab="odak" role="tab">⏱️<span>Odak</span></button>
+  <button class="tab" data-tab="gorev" role="tab">✅<span>Görev</span></button>
+  <button class="tab" data-tab="istatistik" role="tab">📊<span>Veri</span></button>
+  <button class="tab" data-tab="ekip" role="tab">👥<span>Ekip</span></button>
+  <button class="tab" data-tab="mesaj" role="tab">💬<span>Sohbet</span></button>
 </nav>
 
 <main class="wrap">

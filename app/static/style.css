@@ -10,7 +10,10 @@ h2{font-size:17px;margin:4px 0 10px}h3{font-size:15px;margin:14px 0 8px}
 /* top */
 .topbar{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
 .brand{display:flex;align-items:center;gap:8px;min-width:0}
-.logo,.logo-sm{font-weight:800;font-size:19px;letter-spacing:-.5px}
+.logo,.logo-sm{font-weight:800;font-size:19px;letter-spacing:-.5px;display:inline-flex;align-items:center;gap:7px}
+.logodot{width:14px;height:14px;border-radius:50%;background:conic-gradient(from 200deg,#111,#4f46e5,#111);display:inline-block;flex:0 0 auto}
+.logodot.big{width:22px;height:22px}
+.logo{justify-content:center}
 .badge{background:#eef2ff;color:#3730a3;padding:3px 10px;border-radius:20px;font-size:12px;white-space:nowrap}
 .userbox{display:flex;align-items:center;gap:8px;font-size:14px}
 /* tabs: desktop top, mobile bottom fixed */
