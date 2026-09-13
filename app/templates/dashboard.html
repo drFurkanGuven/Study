@@ -3,63 +3,78 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Panel — Ders Motivasyon</title>
+<title>Odak — Panel</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <header class="topbar">
-  <div><strong>📚 {{ me['username'] }}</strong> <span class="badge">Lv {{ level }} · {{ title }}</span></div>
-  <div><a href="/logout" class="btn small">Çıkış</a></div>
+  <div class="brand"><span class="logo-sm">◉ Odak</span> <span class="badge">Lv {{ level }} · {{ title }}</span></div>
+  <div class="userbox"><strong>{{ me['username'] }}</strong> <a href="/logout" class="btn small">Çıkış</a></div>
 </header>
 
-<main class="grid">
-  <!-- SOL: benim günüm -->
-  <section class="card">
-    <h2>Bugün</h2>
-    <div class="stats">
-      <div class="stat"><span>{{ my.today_min }}</span><label>dakika odak</label></div>
-      <div class="stat"><span>{{ my.today_xp }}</span><label>XP</label></div>
-      <div class="stat"><span>{{ my.streak }} 🔥</span><label>gün seri</label></div>
-    </div>
-    <div class="progress"><div style="width:{{ progress }}%"></div></div>
-    <p class="muted">Toplam {{ my.total_xp }} XP · {{ my.total_min }} dk · {{ my.done_tasks }} görev. Sonraki seviyeye %{{ progress }}.</p>
+<nav class="tabs" role="tablist">
+  <button class="tab active" data-tab="odak" role="tab">⏱<span>Odak</span></button>
+  <button class="tab" data-tab="gorev" role="tab">✓<span>Görev</span></button>
+  <button class="tab" data-tab="istatistik" role="tab">▦<span>Veri</span></button>
+  <button class="tab" data-tab="ekip" role="tab">◎<span>Ekip</span></button>
+  <button class="tab" data-tab="mesaj" role="tab">✉<span>Mesaj</span>{% if pokes %}<i class="dot">{{ pokes|length }}</i>{% endif %}</button>
+</nav>
 
-    <h3>⏱️ Pomodoro</h3>
+<main class="wrap">
+
+  <!-- ODAK -->
+  <section class="card panel active" id="panel-odak">
+    <div class="stats">
+      <div class="stat"><span>{{ my.today_min }}'</span><label>bugün odak</label></div>
+      <div class="stat"><span>{{ my.today_xp }}</span><label>bugün XP</label></div>
+      <div class="stat"><span>{{ my.streak }}🔥</span><label>gün seri</label></div>
+    </div>
     <div class="pom">
       <div id="timer">25:00</div>
-      <div class="row">
-        <button class="btn" onclick="setLen(25)">25</button>
-        <button class="btn" onclick="setLen(45)">45</button>
-        <button class="btn" onclick="setLen(5)">5 mola</button>
+      <div class="row wrap-row">
+        <button class="btn chip" onclick="setLen(25)">25</button>
+        <button class="btn chip" onclick="setLen(45)">45</button>
+        <button class="btn chip" onclick="setLen(50)">50</button>
+        <button class="btn chip" onclick="setLen(5)">5 mola</button>
+        <button class="btn chip" onclick="setLen(15)">15 mola</button>
       </div>
       <div class="row">
-        <button class="btn primary" id="startBtn" onclick="toggleTimer()">Başla</button>
+        <button class="btn primary grow" id="startBtn" onclick="toggleTimer()">Başla</button>
         <button class="btn" onclick="resetTimer()">Sıfırla</button>
       </div>
       <p class="muted" id="pomMsg">Bitince otomatik kaydedilir (+2 XP/dk).</p>
     </div>
+  </section>
 
-    <h3>✅ Görevler <small>(+{{ task_xp }} XP)</small></h3>
-    <form action="/api/tasks" method="post" class="row">
-      <input name="title" placeholder="örn: Matematik 20 soru" required style="flex:2">
-      <input name="subject" placeholder="ders" style="flex:1">
+  <!-- GÖREV -->
+  <section class="card panel" id="panel-gorev">
+    <h2>Görevler <small class="muted">(+{{ task_xp }} XP)</small></h2>
+    <form action="/api/tasks" method="post" class="task-add">
+      <input name="title" placeholder="örn: Matematik 20 soru" required>
+      <input name="subject" placeholder="ders (isteğe bağlı)">
       <button class="btn primary" type="submit">Ekle</button>
     </form>
     <ul class="tasks">
       {% for t in tasks %}
       <li class="{{ 'done' if t['done'] else '' }}">
-        <span><strong>{{ t['title'] }}</strong>{% if t['subject'] %} <em>{{ t['subject'] }}</em>{% endif %}</span>
+        <span class="t-title"><strong>{{ t['title'] }}</strong>{% if t['subject'] %} <em>{{ t['subject'] }}</em>{% endif %}</span>
         <span class="row">
           <form action="/api/tasks/{{ t['id'] }}/toggle" method="post"><button class="btn small" type="submit">{{ 'Geri al' if t['done'] else 'Bitir' }}</button></form>
           <form action="/api/tasks/{{ t['id'] }}/delete" method="post"><button class="btn small danger" type="submit">×</button></form>
         </span>
       </li>
       {% else %}
-      <li class="muted">Henüz görev yok. İlk görevini ekle!</li>
+      <li class="muted">Henüz görev yok. İlk görevini ekle.</li>
       {% endfor %}
     </ul>
+  </section>
 
-    <h3>📊 Son 7 gün (dk)</h3>
+  <!-- VERİ -->
+  <section class="card panel" id="panel-istatistik">
+    <h2>Verilerim</h2>
+    <div class="progress"><div style="width:{{ progress }}%"></div></div>
+    <p class="muted">Lv {{ level }} {{ title }} · Toplam {{ my.total_xp }} XP · {{ my.total_min }} dk · {{ my.done_tasks }}/{{ my.total_tasks }} görev</p>
+    <h3>Son 7 gün (dk)</h3>
     <div class="bars">
       {% for d in my.last7 %}
       <div class="bar" title="{{ d.date }}: {{ d.minutes }} dk">
@@ -70,66 +85,65 @@
     </div>
   </section>
 
-  <!-- SAĞ: partner + liderlik -->
-  <section>
+  <!-- EKİP -->
+  <section class="panel" id="panel-ekip">
     <div class="card">
-      <h2>💞 Ortak Hedef</h2>
-      <p>Bu hafta ikiniz: <strong>{{ joint_min }} / {{ joint_goal }} dk</strong> (%{{ joint_pct }})</p>
+      <h2>Haftalık ekip hedefi</h2>
+      <p><strong>{{ joint_min }} / {{ joint_goal }} dk</strong> (%{{ joint_pct }})</p>
       <div class="progress big"><div style="width:{{ joint_pct }}%"></div></div>
       {% if joint_pct >= 100 %}
-      <p>🎉 Haftalık hedef tamamlandı! Harikasınız.</p>
+      <p>Hedef tamamlandı.</p>
       {% else %}
-      <p class="muted">Hedefe {{ joint_goal - joint_min }} dk kaldı. Bir pomodoro daha?</p>
+      <p class="muted">{{ joint_goal - joint_min }} dk kaldı.</p>
       {% endif %}
     </div>
-
     <div class="card">
-      <h2>🏆 Haftalık Liderlik</h2>
+      <h2>Haftalık sıralama</h2>
       <ol class="board">
         {% for b in board %}
         <li class="{{ 'me' if b.is_me else '' }}">
           <span>{{ b.username }} <small>Lv{{ b.level }} {{ b.title }}</small></span>
-          <span><strong>{{ b.week_xp }}</strong> XP · {{ b.today_min }}' bugün · {{ b.streak }}🔥</span>
+          <span><strong>{{ b.week_xp }}</strong> XP · {{ b.today_min }}' · {{ b.streak }}🔥</span>
         </li>
         {% endfor %}
       </ol>
     </div>
-
     {% for p in partners %}
     <div class="card">
-      <h2>👀 {{ p.user['username'] }} bugün</h2>
-      <p>{{ p.stats.today_min }} dk odak · {{ p.stats.today_xp }} XP · {{ p.stats.today_sessions }} pomodoro · Lv{{ p.level }} {{ p.title }}</p>
-      <form action="/api/poke" method="post" class="row">
+      <h2>{{ p.user['username'] }} <small class="muted">bugün {{ p.stats.today_min }}' · {{ p.stats.today_xp }} XP · Lv{{ p.level }}</small></h2>
+      <form action="/api/poke" method="post" class="task-add">
         <input type="hidden" name="to_user" value="{{ p.user['id'] }}">
         <select name="message">
-          <option value="preset:cok-iyi">Çok iyi gidiyorsun, devam et!</option>
-          <option value="preset:mola-bit">Mola bitti, hadi bir pomodoro daha?</option>
-          <option value="preset:gurur">Seninle gurur duyuyorum!</option>
-          <option value="preset:yaris">Seni yakalayacağım, yarış başlasın!</option>
+          <option value="preset:devam">Güzel gidiyorsun, devam et!</option>
+          <option value="preset:mola-bit">Mola bitti, bir pomodoro daha?</option>
+          <option value="preset:seri">Güzel seri yakaladın, bozma!</option>
+          <option value="preset:yaris">Rekabete hazır mısın? Hodri meydan!</option>
         </select>
-        <button class="btn primary" type="submit">Motivasyon gönder 💌</button>
+        <button class="btn primary" type="submit">Gönder</button>
       </form>
-      <form action="/api/poke" method="post" class="row" style="margin-top:8px">
+      <form action="/api/poke" method="post" class="task-add" style="margin-top:8px">
         <input type="hidden" name="to_user" value="{{ p.user['id'] }}">
         <input name="message" placeholder="Kendi mesajın..." maxlength="200" required>
         <button class="btn" type="submit">Gönder</button>
       </form>
     </div>
     {% else %}
-    <div class="card"><p class="muted">Henüz partner yok. Kız arkadaşın kayıt olup giriş yapınca burada görünecek.</p></div>
+    <div class="card"><p class="muted">Ekipte henüz başka kimse yok. Arkadaşın kayıt olunca burada görünecek.</p></div>
     {% endfor %}
-
-    <div class="card">
-      <h2>💌 Sana gelenler</h2>
-      <ul class="pokes">
-        {% for m in pokes %}
-        <li><strong>{{ m['from_name'] }}:</strong> {{ m['message'] }} <small>{{ m['created_at'][:16].replace('T',' ') }}</small></li>
-        {% else %}
-        <li class="muted">Henüz mesaj yok.</li>
-        {% endfor %}
-      </ul>
-    </div>
   </section>
+
+  <!-- MESAJ -->
+  <section class="card panel" id="panel-mesaj">
+    <h2>Gelenler</h2>
+    <ul class="pokes">
+      {% for m in pokes %}
+      <li><strong>{{ m['from_name'] }}:</strong> {{ m['message'] }} <small>{{ m['created_at'][:16].replace('T',' ') }}</small></li>
+      {% else %}
+      <li class="muted">Henüz mesaj yok.</li>
+      {% endfor %}
+    </ul>
+  </section>
+
 </main>
 
 <script src="/static/app.js"></script>

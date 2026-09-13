@@ -12,7 +12,7 @@ DATABASE = os.path.join(BASE_DIR, "study.db")
 
 TASK_XP = 20  # görev başına XP
 FOCUS_XP_PER_MIN = 2  # 25 dk = 50 XP
-WEEKLY_JOINT_GOAL_MIN = 600  # ikinizin toplam haftalık hedefi (dk)
+WEEKLY_JOINT_GOAL_MIN = 600  # ekibin toplam haftalık hedefi (dk)
 
 # ---------- DB ----------
 def get_db():
@@ -303,10 +303,10 @@ def poke():
     to_id = request.form.get("to_user", "")
     msg = request.form.get("message", "").strip()[:200]
     presets = {
-        "cok-iyi": "Çok iyi gidiyorsun, devam et!",
-        "mola-bit": "Mola bitti, hadi bir pomodoro daha?",
-        "gurur": "Seninle gurur duyuyorum!",
-        "yaris": "Seni yakalayacağım, yarış başlasın!",
+        "devam": "Güzel gidiyorsun, devam et!",
+        "mola-bit": "Mola bitti, bir pomodoro daha?",
+        "seri": "Güzel seri yakaladın, bozma!",
+        "yaris": "Rekabete hazır mısın? Hodri meydan!",
     }
     if msg.startswith("preset:"):
         msg = presets.get(msg[7:], msg)

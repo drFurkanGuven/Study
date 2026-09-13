@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Giriş — Ders Motivasyon</title>
+<title>Giriş — Odak</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <div class="auth-wrap">
   <div class="card auth-card">
-    <h1>📚 Ders Motivasyon</h1>
-    <p class="muted">Kız arkadaşınla birlikte odaklan, puan topla, birbirinizi motive edin.</p>
+    <div class="logo">◉ Odak</div>
+    <p class="muted">Odaklan. Puan topla. Seriyi koru.</p>
     {% if err %}<div class="alert">{{ err }}</div>{% endif %}
     <form method="post">
-      <input name="username" placeholder="Kullanıcı adı" required>
-      <input name="password" type="password" placeholder="Şifre" required>
-      <button class="btn primary" type="submit">Giriş Yap</button>
+      <input name="username" placeholder="Kullanıcı adı" required autocomplete="username">
+      <input name="password" type="password" placeholder="Şifre" required autocomplete="current-password">
+      <button class="btn primary block" type="submit">Giriş Yap</button>
     </form>
     <p class="muted">Hesabın yok mu? <a href="/register">Kayıt ol</a></p>
   </div>
