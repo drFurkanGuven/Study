@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 <link rel="icon" type="image/svg+xml" href="/static/fox.svg">
+<style>body::before{background-image:url(/scenery/{{ me.scenery_seed }}.svg)}</style>
 <meta name="theme-color" content="#111111">
 </head>
 <body>
@@ -32,6 +33,7 @@
   <button class="tab" data-tab="istatistik" role="tab">📊<span>Veri</span></button>
   <button class="tab" data-tab="ekip" role="tab">👥<span>Ekip</span></button>
   <button class="tab" data-tab="mesaj" role="tab">💬<span>Sohbet</span></button>
+  <button class="tab" data-tab="sahne" role="tab">🖼️<span>Sahne</span></button>
 </nav>
 
 <main class="wrap">
@@ -47,21 +49,19 @@
             </select>
             <input id="subjInput" placeholder="ders" maxlength="60">
           </div>
-          <p class="lbl">Odak süresi</p>
-          <div class="dur-grid">
-            <button class="btn chip sel" onclick="setLen(25,'focus',this)">25</button>
-            <button class="btn chip" onclick="setLen(15,'focus',this)">15</button>
-            <button class="btn chip" onclick="setLen(20,'focus',this)">20</button>
-            <button class="btn chip" onclick="setLen(30,'focus',this)">30</button>
-            <button class="btn chip" onclick="setLen(45,'focus',this)">45</button>
-            <button class="btn chip" onclick="setLen(50,'focus',this)">50</button>
-            <button class="btn chip" onclick="setLen(60,'focus',this)">60</button>
-            <button class="btn chip" onclick="setLen(90,'focus',this)">90</button>
+          <p class="lbl">Süre</p>
+          <div class="dur-pick">
+            <button class="btn step" onclick="stepDur(-5)">−</button>
+            <div class="dur-num"><span id="durNum">25</span><small>dk</small></div>
+            <button class="btn step" onclick="stepDur(5)">+</button>
           </div>
-          <p class="lbl">Mola</p>
-          <div class="dur-grid">
-            <button class="btn chip" onclick="setLen(5,'break',this)">5</button>
-            <button class="btn chip" onclick="setLen(15,'break',this)">15</button>
+          <input type="range" id="durRange" min="5" max="120" step="5" value="25" oninput="rangeDur(this.value)">
+          <div class="dur-quick">
+            <button class="btn chip" onclick="pickDur(25,this)">25</button>
+            <button class="btn chip" onclick="pickDur(50,this)">50</button>
+            <button class="btn chip" onclick="pickDur(90,this)">90</button>
+            <button class="btn chip" onclick="pickDur(5,this,true)">5☕</button>
+            <button class="btn chip" onclick="pickDur(15,this,true)">15☕</button>
           </div>
           <button class="btn primary block big-start" onclick="toggleTimer()">Başla</button>
           <p class="muted" id="pomMsg">Bitince otomatik kaydedilir (+2 XP/dk).</p>
@@ -317,6 +317,31 @@
     {% else %}
     <p class="muted">Sohbet için önce arkadaş ekle (Ekip sekmesi).</p>
     {% endif %}
+  </section>
+
+  <!-- SAHNE -->
+  <section class="panel" id="panel-sahne">
+    <div class="card">
+      <h2>Sahnen ({{ me.scenery_seed }})</h2>
+      <p class="muted">Her tohum benzersiz bir manzara üretir. Seçimin sadece sende görünür.</p>
+      <div class="gal">
+        {% for g in gallery %}
+        <form action="/api/theme" method="post" class="tile {{ 'cur' if g==me.scenery_seed else '' }}">
+          <input type="hidden" name="seed" value="{{ g }}">
+          <button type="submit" title="{{ g }}"><img src="/scenery/{{ g }}.svg" alt="{{ g }}" loading="lazy"><span>{{ g }}</span></button>
+        </form>
+        {% endfor %}
+      </div>
+      <h2>Sürpriz</h2>
+      <div class="gal-one">
+        <img id="surImg" src="/scenery/SURPRIZ.svg" alt="sürpriz">
+        <form action="/api/theme" method="post" class="row">
+          <input type="hidden" name="seed" id="surSeed" value="SURPRIZ">
+          <button class="btn" type="button" onclick="surprise()">Zar at 🎲</button>
+          <button class="btn primary" type="submit">Bunu kullan</button>
+        </form>
+      </div>
+    </div>
   </section>
 
 </main>

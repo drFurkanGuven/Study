@@ -11,7 +11,7 @@ function showTab(name){
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
 (function(){
   const h=(location.hash||'').replace('#','').split('?')[0];
-  const valid=['odak','gorev','istatistik','ekip','mesaj'];
+  const valid=['odak','gorev','istatistik','ekip','mesaj','sahne'];
   if(valid.includes(h))showTab(h);
   else if(new URLSearchParams(location.search).get('c'))showTab('mesaj');
 })();
@@ -89,10 +89,25 @@ function setLen(m,kind,btn){
   stopTimer();clearPersist();setFocus(false);
   totalSec=m*60;leftSec=totalSec;isBreak=(kind==='break');
   if(kind==='focus')lastFocus=m;
-  document.querySelectorAll('.dur-grid .chip').forEach(c=>c.classList.remove('sel'));
+  document.querySelectorAll('.dur-quick .chip').forEach(c=>c.classList.remove('sel'));
   if(btn)btn.classList.add('sel');
+  const dn=document.getElementById('durNum'),dr=document.getElementById('durRange');
+  if(dn)dn.textContent=m;
+  if(dr)dr.value=Math.min(120,Math.max(5,m));
   paintModes();
   render();
+}
+function pickDur(m,btn,isBreak){setLen(m,isBreak?'break':'focus',btn);}
+function stepDur(d){
+  const cur=Math.round(totalSec/60);
+  setLen(Math.min(120,Math.max(5,cur+d)),'focus',null);
+}
+function rangeDur(v){setLen(parseInt(v,10),'focus',null);}
+function surprise(){
+  const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let s='';for(let i=0;i<6;i++)s+=A[Math.floor(Math.random()*A.length)];
+  document.getElementById('surImg').src='/scenery/'+s+'.svg';
+  document.getElementById('surSeed').value=s;
 }
 function paintModes(){
   const f=document.getElementById('mFocus'),s=document.getElementById('mShort'),l=document.getElementById('mLong');
@@ -178,7 +193,7 @@ async function finish(){
   if(kind==='break'){
     notify('Mola bitti','Yeni bir odak başlat.');
     giveUp();
-    setLen(25,'focus',document.querySelector('.dur-grid .chip'));
+    setLen(25,'focus',null);
     return;
   }
   notify('Odak tamam','+'+(mins*2)+' XP hazır. Odak puanını ver.');

@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, session, g, jsonify
+from flask import Flask, render_template, request, redirect, url_for, session, g, jsonify, Response
 import sqlite3
 import os
 import secrets
@@ -126,6 +126,9 @@ def init_db():
         _add_col(db, "users", "daily_goal INTEGER DEFAULT 120")
     if "is_frozen" not in cols:
         _add_col(db, "users", "is_frozen INTEGER DEFAULT 0")
+    if "scenery_seed" not in cols:
+        _add_col(db, "users", "scenery_seed TEXT DEFAULT 'TILKI1'")
+    db.execute("UPDATE users SET scenery_seed='TILKI1' WHERE scenery_seed IS NULL")
     scols = [r[1] for r in db.execute("PRAGMA table_info(sessions)").fetchall()]
     for col, ddl in (("task_id", "task_id INTEGER"), ("subject", "subject TEXT DEFAULT ''"),
                      ("goal", "goal TEXT DEFAULT ''"), ("score", "score INTEGER")):
@@ -325,7 +328,126 @@ def league_table(user_id):
     table.sort(key=lambda x: x["xp4"], reverse=True)
     return table
 
+# ---------- prosedürel manzara motoru ----------
+import random as _rnd
+
+PALETTES = [
+    {"sky": ["#79c4e8", "#8fd4ee", "#a5e0f2"], "sun": "#ffe066", "sun2": "#ffd23e",
+     "mtn": ["#a8c6de", "#7d9cbd"], "hill": "#7ccf66", "grass": "#6fbf5a", "dark": "#2e7d46",
+     "leaf": "#46b264", "night": False},
+    {"sky": ["#e8825a", "#f5a54c", "#ffd9a0"], "sun": "#fff3b0", "sun2": "#ffdf6b",
+     "mtn": ["#9a7ba8", "#6f5b8a"], "hill": "#7ccf66", "grass": "#5da24e", "dark": "#2e6b3e",
+     "leaf": "#46b264", "night": False},
+    {"sky": ["#0e1a2e", "#16294a", "#1f3a63"], "sun": "#f4f1de", "sun2": "#e0dcc0",
+     "mtn": ["#2c3e57", "#1f2d42"], "hill": "#1f4d3a", "grass": "#1a4232", "dark": "#123324",
+     "leaf": "#2e7d46", "night": True},
+    {"sky": ["#7fb2d9", "#a8cfe8", "#f6d9a8"], "sun": "#fff3b0", "sun2": "#ffe066",
+     "mtn": ["#93aec6", "#71879e"], "hill": "#82c96f", "grass": "#66b155", "dark": "#2e7d46",
+     "leaf": "#46b264", "night": False},
+    {"sky": ["#3f7d5d", "#5da273", "#a8d5a2"], "sun": "#fff8d0", "sun2": "#ffef9e",
+     "mtn": ["#5d8a6d", "#42644f"], "hill": "#4c9a45", "grass": "#3f8a3a", "dark": "#1f5c2e",
+     "leaf": "#57ab4b", "night": False},
+]
+
+GALLERY = ["TILKI1", "ORMAN42", "GECE07", "GUNBATIMI", "SAFAK19", "DENIZ33", "YILDIZ9", "YESIL55"]
+SEED_CHARS = string.ascii_uppercase + string.digits
+
+
+def clean_seed(s):
+    return "".join(ch for ch in (s or "").upper() if ch in SEED_CHARS)[:12] or "TILKI1"
+
+
+def _pine(x, y, s, dark, leaf, trunk="#5b3a1e"):
+    w = lambda v: int(round(v * s))
+    return (f'<rect x="{x+w(8)}" y="{y}" width="{w(8)}" height="{w(6)}" fill="{dark}"/>'
+            f'<rect x="{x+w(4)}" y="{y+w(6)}" width="{w(16)}" height="{w(8)}" fill="{dark}"/>'
+            f'<rect x="{x+w(10)}" y="{y+w(6)}" width="{w(4)}" height="{w(8)}" fill="{leaf}"/>'
+            f'<rect x="{x}" y="{y+w(14)}" width="{w(24)}" height="{w(10)}" fill="{dark}"/>'
+            f'<rect x="{x+w(6)}" y="{y+w(14)}" width="{w(6)}" height="{w(10)}" fill="{leaf}"/>'
+            f'<rect x="{x+w(9)}" y="{y+w(24)}" width="{w(6)}" height="{w(12)}" fill="{trunk}"/>')
+
+
+def gen_scenery(seed):
+    """Tohumdan deterministik piksel manzara SVG'si."""
+    seed = clean_seed(seed)
+    rng = _rnd.Random(seed)
+    p = PALETTES[sum(ord(c) for c in seed) % len(PALETTES)]
+    R = []
+    W, H = 800, 450
+    R.append(f'<rect width="{W}" height="{H}" fill="{p["sky"][0]}"/>')
+    R.append(f'<rect y="110" width="{W}" height="130" fill="{p["sky"][1]}"/>')
+    R.append(f'<rect y="240" width="{W}" height="60" fill="{p["sky"][2]}"/>')
+    if p["night"]:
+        for _ in range(70):
+            x, y = rng.randrange(W), rng.randrange(240)
+            s = 2 if rng.random() < 0.85 else 3
+            R.append(f'<rect x="{x}" y="{y}" width="{s}" height="{s}" fill="#ffffff"/>')
+        mx, my = rng.randrange(560, 680), rng.randrange(36, 90)
+        R.append(f'<rect x="{mx}" y="{my}" width="56" height="56" fill="{p["sun"]}"/>')
+        R.append(f'<rect x="{mx+12}" y="{my+12}" width="32" height="32" fill="{p["sun2"]}"/>')
+        R.append(f'<rect x="{mx+36}" y="{my+16}" width="10" height="10" fill="#c9c5a8"/>')
+    else:
+        sx, sy = rng.randrange(560, 680), rng.randrange(32, 90)
+        R.append(f'<rect x="{sx}" y="{sy}" width="88" height="88" fill="#fff3b0"/>')
+        R.append(f'<rect x="{sx+16}" y="{sy+16}" width="56" height="56" fill="{p["sun"]}"/>')
+        R.append(f'<rect x="{sx+28}" y="{sy+28}" width="32" height="32" fill="{p["sun2"]}"/>')
+        for _ in range(rng.randrange(2, 5)):
+            bx = rng.randrange(W)
+            R.append(f'<rect x="{bx}" y="{rng.randrange(60, 200)}" width="8" height="3" fill="#2f3a44"/>')
+    # bulutlar
+    for _ in range(rng.randrange(3, 6)):
+        cx, cy, sc = rng.randrange(560), rng.randrange(40, 210), rng.choice([0.55, 0.7, 0.85, 1.0])
+        w = lambda v: int(round(v * sc))
+        R.append(f'<g fill="#ffffff"><rect x="{cx}" y="{cy}" width="{w(120)}" height="{w(14)}"/>'
+                 f'<rect x="{cx+w(14)}" y="{cy-w(8)}" width="{w(92)}" height="{w(8)}"/>'
+                 f'<rect x="{cx-w(10)}" y="{cy+w(14)}" width="{w(140)}" height="{w(6)}" fill="#e8f4fa"/></g>')
+    # daglar (kademeli)
+    for mx0, mw, mh, col in ((rng.randrange(0, 120), rng.randrange(180, 240), rng.randrange(70, 100), p["mtn"][1]),
+                             (rng.randrange(520, 620), rng.randrange(160, 220), rng.randrange(60, 90), p["mtn"][1])):
+        steps = 6
+        for i in range(steps):
+            ww = mw * (i + 1) // steps
+            R.append(f'<rect x="{mx0 + (mw - ww)//2}" y="{300-mh+mh*i//steps}" width="{ww}" height="{mh//steps+1}" fill="{col}"/>')
+        R.append(f'<rect x="{mx0+mw//2-22}" y="{300-mh}" width="44" height="10" fill="#ffffff"/>')
+    # tepe + agaclar
+    R.append(f'<rect x="0" y="300" width="{W}" height="26" fill="{p["hill"]}"/>')
+    R.append(f'<rect x="0" y="300" width="{W}" height="5" fill="{p["leaf"]}"/>')
+    R.append(f'<rect x="0" y="334" width="{W}" height="116" fill="{p["grass"]}"/>')
+    R.append(f'<rect x="0" y="334" width="{W}" height="5" fill="{p["leaf"]}"/>')
+    n = rng.randrange(9, 14)
+    xs = sorted(rng.sample(range(10, 770), n))
+    for x in xs:
+        R.append(_pine(x, rng.randrange(330, 348), round(rng.uniform(0.85, 1.25), 2), p["dark"], p["leaf"]))
+    for _ in range(rng.randrange(3, 6)):
+        R.append(f'<rect x="{rng.randrange(W)}" y="318" width="{rng.randrange(20, 34)}" height="9" fill="{p["leaf"]}"/>')
+    for _ in range(rng.randrange(5, 9)):
+        fx, fy = rng.randrange(W), rng.randrange(400, 425)
+        fc = rng.choice(["#ff6b81", "#ffd23e", "#ffffff"])
+        R.append(f'<rect x="{fx}" y="{fy}" width="5" height="5" fill="{fc}"/><rect x="{fx+2}" y="{fy+5}" width="2" height="7" fill="{p["dark"]}"/>')
+    for _ in range(rng.randrange(5, 9)):
+        R.append(f'<rect x="{rng.randrange(W)}" y="{rng.randrange(400, 430)}" width="2" height="6" fill="{p["dark"]}"/>')
+    return ('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" '
+            'preserveAspectRatio="xMidYMid slice" shape-rendering="crispEdges">' + "".join(R) + '</svg>')
+
+
 # ---------- routes ----------
+@app.route("/scenery/<seed>.svg")
+def scenery(seed):
+    svg = gen_scenery(seed)
+    return Response(svg, mimetype="image/svg+xml",
+                    headers={"Cache-Control": "public, max-age=86400"})
+
+
+@app.route("/api/theme", methods=["POST"])
+@login_required
+def theme():
+    seed = clean_seed(request.form.get("seed", ""))
+    db = get_db()
+    db.execute("UPDATE users SET scenery_seed=? WHERE id=?", (seed, session["user_id"]))
+    db.commit()
+    return redirect(url_for("dashboard", _anchor="sahne"))
+
+
 @app.route("/")
 def index():
     if "user_id" in session:
@@ -344,8 +466,8 @@ def register():
             db = get_db()
             try:
                 first = db.execute("SELECT COUNT(*) c FROM users").fetchone()["c"] == 0
-                db.execute("INSERT INTO users (username, password_hash, created_at, invite_code, is_admin) VALUES (?,?,?,?,?)",
-                           (u, generate_password_hash(p), datetime.now().isoformat(), make_code(), 1 if first else 0))
+                db.execute("INSERT INTO users (username, password_hash, created_at, invite_code, is_admin, scenery_seed) VALUES (?,?,?,?,?,?)",
+                           (u, generate_password_hash(p), datetime.now().isoformat(), make_code(), 1 if first else 0, clean_seed(secrets.token_hex(3))))
                 db.commit()
                 return redirect(url_for("login"))
             except sqlite3.IntegrityError:
@@ -498,7 +620,8 @@ def dashboard():
                            wager_presets=WAGER_PRESETS,
                            chat_fid=chat_fid, chat_msgs=chat_msgs, chat_peer=chat_peer,
                            subs=subs, favg=favg, daily_goal=daily_goal, ring_pct=ring_pct,
-                           chain=chain, league=league, live=live, announces=announces)
+                           chain=chain, league=league, live=live, announces=announces,
+                           gallery=GALLERY)
 
 @app.route("/api/tasks", methods=["POST"])
 @login_required
