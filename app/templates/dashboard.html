@@ -37,12 +37,12 @@
     <div class="odak-grid">
       <div class="card timer-card">
         <input id="goalInput" placeholder="Bu odakta ne bitecek? (örn: Ünite 3 özet)" maxlength="160">
-        <div class="row wrap-row">
+        <div class="frow">
           <select id="taskSelect">
             <option value="">Görev seç (isteğe bağlı)</option>
             {% for t in open_tasks %}<option value="{{ t['id'] }}" data-subj="{{ t['subject'] }}">{{ t['title'] }}</option>{% endfor %}
           </select>
-          <input id="subjInput" placeholder="ders" maxlength="60" style="max-width:130px">
+          <input id="subjInput" placeholder="ders" maxlength="60">
         </div>
         <div class="pom">
           <div id="timer">25:00</div>
@@ -75,7 +75,7 @@
           <svg viewBox="0 0 60 60"><circle cx="30" cy="30" r="26" class="bg"/><circle cx="30" cy="30" r="26" class="fg"/></svg>
           <div class="ring-t"><strong>{{ my.today_min }}'</strong><small>/{{ daily_goal }}'</small></div>
         </div>
-        <div class="stats col">
+        <div class="stats">
           <div class="stat"><span>{{ my.today_xp }}</span><label>bugün XP</label></div>
           <div class="stat"><span>{{ my.streak }}🔥</span><label>gün seri</label></div>
           <div class="stat"><span>{{ chain }}/4</span><label>zincir</label></div>

@@ -64,16 +64,18 @@ body.dark .btn{background:#27272a;border-color:#3f3f46;color:#f4f4f5}
 .code{font-size:20px;font-weight:800;letter-spacing:3px;background:var(--soft);border:1px dashed #a1a1aa;border-radius:10px;padding:6px 16px}
 
 /* odak */
-.odak-grid{display:flex;flex-direction:column;gap:var(--pad);min-height:0}
-.timer-card{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center}
-.day-card{flex:0 0 auto;display:flex;gap:12px;align-items:center}
-.day-card .stats{flex:1}
+.odak-grid{display:flex;flex-direction:column;gap:var(--pad);min-height:0;align-content:start}
+.timer-card{flex:0 0 auto;display:flex;flex-direction:column;justify-content:flex-start}
+.day-card{flex:0 0 auto;display:flex;flex-direction:column;gap:10px;align-items:stretch}
+.day-card .ring{margin:0 auto}
+.frow{display:flex;gap:8px}
+.frow select{flex:2;min-width:0}
+.frow input{flex:1;min-width:0}
 .pom{text-align:center}
 #timer{font-size:clamp(56px,17dvh,96px);font-weight:800;letter-spacing:2px;line-height:1;margin:2px 0;font-variant-numeric:tabular-nums}
 #goalInput{margin-bottom:2px}
 #scoreBox{margin-top:8px}
 .stats{display:flex;gap:8px;margin:6px 0}
-.stats.col{flex-direction:column}
 .stat{flex:1;background:var(--soft);border:1px solid var(--line);border-radius:12px;padding:8px 4px;text-align:center;min-width:0}
 .stat span{font-size:19px;font-weight:800;display:block}
 .stat label{font-size:11px;color:var(--mut)}
@@ -164,8 +166,9 @@ body.dark .duel-score .side.win{background:#1e1b4b;border-color:#4f46e5}
   .tab{flex:0 0 auto;flex-direction:column;font-size:22px;padding:12px 4px}
   .tab span{font-size:11px}
   .topbar{position:sticky;top:0}
-  .odak-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:var(--pad);flex:1;min-height:0}
-  .day-card{flex-direction:column;justify-content:center;align-items:stretch;text-align:center}
+  .odak-grid{display:grid;grid-template-columns:1.25fr .75fr;gap:var(--pad);flex:0 0 auto;margin:auto 0;width:100%;align-items:start}
+  #panel-odak.active{justify-content:flex-start}
+  .day-card{flex-direction:column;justify-content:flex-start;align-items:stretch;text-align:center}
   .day-card .ring{margin:0 auto}
   #timer{font-size:clamp(72px,11vw,120px)}
   .veri-grid{grid-template-columns:repeat(2,1fr)}
