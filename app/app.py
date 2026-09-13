@@ -102,9 +102,9 @@ def init_db():
     # eski DB'lere davet kodu + admin kolonu ekle, kodları doldur, ilk kullanıcıyı admin yap
     cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
     if "invite_code" not in cols:
-        db.execute("ALTER TABLE users ADD COLUMN invite_code TEXT")
+        _add_col(db, "invite_code TEXT")
     if "is_admin" not in cols:
-        db.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+        _add_col(db, "is_admin INTEGER DEFAULT 0")
     db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite ON users(invite_code)")
     for r in db.execute("SELECT id FROM users WHERE invite_code IS NULL").fetchall():
         db.execute("UPDATE users SET invite_code=? WHERE id=?", (make_code(), r[0]))
@@ -116,6 +116,15 @@ def init_db():
 def make_code(n=6):
     alpha = string.ascii_uppercase + string.digits
     return "".join(secrets.choice(alpha) for _ in range(n))
+
+
+def _add_col(db, ddl):
+    # gunicorn worker'ları aynı anda koşabilir: duplicate olursa sessiz geç
+    try:
+        db.execute(f"ALTER TABLE users ADD COLUMN {ddl}")
+    except sqlite3.OperationalError as e:
+        if "duplicate" not in str(e).lower():
+            raise
 
 # ---------- helpers ----------
 def login_required(f):
@@ -613,3 +622,9 @@ if __name__ == "__main__":
     init_db()
     print("→ http://127.0.0.1:5001 adresinde çalışıyor")
     app.run(host="0.0.0.0", port=5001, debug=True)
+else:
+    # gunicorn ile açılışta da migrate et (eski DB 500 vermesin)
+    try:
+        init_db()
+    except Exception as e:
+        print("db init uyarisi:", e)
