@@ -13,6 +13,13 @@
 </header>
 <main class="wrap">
   <div class="card">
+    <h2>Duyuru yayınla</h2>
+    <form action="/admin/announce" method="post" class="task-add">
+      <input name="body" placeholder="örn: Sınav 20 Ekim, bu hafta hedef 700 dk" maxlength="300" required>
+      <button class="btn primary" type="submit">Yayınla</button>
+    </form>
+  </div>
+  <div class="card">
     <h2>Kullanıcılar ({{ rows|length }})</h2>
     <div class="admin-list">
       {% for r in rows %}
@@ -20,10 +27,12 @@
         <span><strong>{{ r.u['username'] }}</strong>
           {% if r.u['is_admin'] %}<span class="badge">admin</span>{% endif %}
           <small class="muted">{{ r.xp }} XP · {{ r.mins }}' · {{ r.streak }}🔥 · {{ r.friends }} arkadaş · {{ r.u['invite_code'] }}</small>
+          {% if r.u['is_frozen'] %} <span class="badge">dondurulmuş</span>{% endif %}
         </span>
         {% if r.u['id'] != me['id'] %}
         <span class="row">
           <form action="/admin/user/{{ r.u['id'] }}/toggle-admin" method="post"><button class="btn small" type="submit">{{ 'Admini kaldır' if r.u['is_admin'] else 'Admin yap' }}</button></form>
+          <form action="/admin/user/{{ r.u['id'] }}/freeze" method="post"><button class="btn small" type="submit">{{ 'Dondurmayı aç' if r.u['is_frozen'] else 'Dondur' }}</button></form>
           <form action="/admin/user/{{ r.u['id'] }}/delete" method="post" onsubmit="return confirm('{{ r.u['username'] }} silinsin mi? Tüm verisi gider!')"><button class="btn small danger" type="submit">Sil</button></form>
         </span>
         {% else %}

@@ -1,29 +1,133 @@
+// tema
+function toggleDark(){document.body.classList.toggle('dark');try{localStorage.setItem('odak-dark',document.body.classList.contains('dark')?'1':'0');}catch(e){}}
+try{if(localStorage.getItem('odak-dark')==='1'){document.body.classList.add('dark');}}catch(e){}
+
 // sekmeler
 function showTab(name){
   document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
   document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+name));
   try{history.replaceState(null,'','#'+name);}catch(e){}
-  window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
 (function(){
-  const h=(location.hash||'').replace('#','');
+  const h=(location.hash||'').replace('#','').split('?')[0];
   const valid=['odak','gorev','istatistik','ekip','mesaj'];
   if(valid.includes(h))showTab(h);
+  else if(new URLSearchParams(location.search).get('c'))showTab('mesaj');
 })();
 function gotoChat(fid){location.href='/dashboard?c='+fid+'#mesaj';}
-// chat: alta kaydır + 5sn'de bir yeni mesajları çek
+function focusTask(tid){
+  showTab('odak');
+  const s=document.getElementById('taskSelect');
+  if(s){s.value=String(tid);syncSubj();}
+  document.getElementById('goalInput')?.focus();
+}
+function syncSubj(){
+  const s=document.getElementById('taskSelect'),sub=document.getElementById('subjInput');
+  if(s&&sub){const o=s.selectedOptions[0];if(o&&o.dataset.subj)sub.value=o.dataset.subj;}
+}
+document.getElementById('taskSelect')?.addEventListener('change',syncSubj);
+function copySummary(){
+  const t=document.getElementById('sumCard')?.textContent||'';
+  (navigator.clipboard?navigator.clipboard.writeText(t):Promise.reject()).then(()=>alert('Kopyalandı')).catch(()=>prompt('Kopyala:',t));
+}
+
+// bildirim izni (ilk Başla'da istenir)
+function wantNotify(){try{if('Notification' in window&&Notification.permission==='default')Notification.requestPermission();}catch(e){}}
+function notify(t,b){try{if('Notification' in window&&Notification.permission==='granted')new Notification(t,{body:b});}catch(e){}}
+
+// pomodoro (dayanıklı: sayfa kapanınca localStorage'dan devam)
+let totalSec=25*60,leftSec=totalSec,timerId=null,isBreak=false,pendingSave=null;
+const el=()=>document.getElementById('timer');
+function fmt(s){const m=Math.floor(s/60),ss=s%60;return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
+function render(){if(!el())return;el().textContent=fmt(leftSec);document.title=fmt(leftSec)+' — Odak';}
+function persist(){try{localStorage.setItem('odak-t',{end:Date.now()+leftSec*1000,total:totalSec,break:isBreak?'1':'0'});}catch(e){}}
+function clearPersist(){try{localStorage.removeItem('odak-t');}catch(e){}}
+function setLen(m){stopTimer();clearPersist();totalSec=m*60;leftSec=totalSec;isBreak=(m===5||m===15);const b=document.getElementById('startBtn');if(b)b.textContent='Başla';render();}
+function toggleTimer(){
+  wantNotify();
+  const btn=document.getElementById('startBtn');
+  if(timerId){stopTimer();clearPersist();presenceClear();if(btn)btn.textContent='Devam Et';return;}
+  if(btn)btn.textContent='Duraklat';
+  document.getElementById('scoreBox').style.display='none';
+  presencePing();
+  timerId=setInterval(()=>{
+    leftSec--;render();persist();
+    if(leftSec%30===0)presencePing();
+    if(leftSec<=0){stopTimer();clearPersist();presenceClear();if(btn)btn.textContent='Başla';finish();}
+  },1000);
+}
+function stopTimer(){if(timerId){clearInterval(timerId);timerId=null;}}
+function resetTimer(){stopTimer();clearPersist();presenceClear();leftSec=totalSec;const b=document.getElementById('startBtn');if(b)b.textContent='Başla';document.getElementById('scoreBox').style.display='none';render();}
+async function finish(){
+  try{navigator.vibrate&&navigator.vibrate([200,100,200]);}catch(e){}
+  const mins=Math.round(totalSec/60),kind=isBreak?'break':'focus',msg=document.getElementById('pomMsg');
+  if(kind==='break'){notify('Mola bitti','Yeni bir odak başlat.');if(msg)msg.textContent='Mola bitti. Yeni bir odak başlat.';resetTimer();return;}
+  notify('Odak tamam','+'+(mins*2)+' XP hazır. Odak puanını ver.');
+  pendingSave={minutes:mins,goal:document.getElementById('goalInput')?.value||'',task_id:document.getElementById('taskSelect')?.value||null,subject:document.getElementById('subjInput')?.value||''};
+  document.getElementById('scoreBox').style.display='block';
+  if(msg)msg.textContent='Kaydetmek için odak puanını seç (1-5).';
+}
+async function saveScore(n){
+  if(!pendingSave)return;
+  const msg=document.getElementById('pomMsg');
+  if(msg)msg.textContent='Kaydediliyor...';
+  try{
+    const r=await fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({minutes:pendingSave.minutes,kind:'focus',goal:pendingSave.goal,task_id:pendingSave.task_id,subject:pendingSave.subject,score:n})});
+    const j=await r.json();
+    if(j.ok){pendingSave=null;location.reload();}
+    else if(msg)msg.textContent='Kayıt hatası.';
+  }catch(e){if(msg)msg.textContent='Bağlantı hatası.';}
+}
+// kaldığı yerden devam
+(function(){
+  try{
+    const raw=localStorage.getItem('odak-t');if(!raw)return;
+    const t=JSON.parse(raw),left=Math.round((t.end-Date.now())/1000);
+    if(left>0){totalSec=t.total;leftSec=left;isBreak=t.break==='1';render();toggleTimer();}
+    else localStorage.removeItem('odak-t');
+  }catch(e){}
+})();
+render();
+
+// presence: ben çalışırken her 30sn ping
+function presenceDetail(){
+  const g=document.getElementById('goalInput')?.value||'';
+  const t=document.getElementById('taskSelect');
+  const tn=t&&t.value?t.selectedOptions[0].textContent:'';
+  return (tn||g||'odakta').slice(0,80);
+}
+function presencePing(){fetch('/api/presence/ping',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({detail:presenceDetail()})}).catch(()=>{});}
+function presenceClear(){fetch('/api/presence/clear',{method:'POST'}).catch(()=>{});}
+// ekip sekmesinde canlı rozetleri güncelle
+async function pollLive(){
+  if(!document.getElementById('panel-ekip')?.classList.contains('active'))return;
+  try{
+    const r=await fetch('/api/presence');const j=await r.json();
+    if(!j.ok)return;
+    document.querySelectorAll('[data-live]').forEach(elm=>{
+      const v=j.live[elm.dataset.live];
+      if(v){elm.style.display='inline';elm.querySelector('.lived').textContent=v.detail;}
+      else elm.style.display='none';
+    });
+  }catch(e){}
+}
+setInterval(pollLive,30000);
+
+// chat: alta kaydır + 5sn poll + yazıyor + typing bildir
 (function(){
   const box=document.getElementById('chatbox');
   if(!box)return;
   box.scrollTop=box.scrollHeight;
-  const fid=box.dataset.fid, me=box.dataset.me;
+  const fid=box.dataset.fid,me=box.dataset.me,ind=document.getElementById('typingInd');
   const lastMid=()=>{const l=box.querySelector('.msg:last-child');return l?parseInt(l.dataset.mid||'0',10):0;};
   async function poll(){
     try{
       const r=await fetch('/api/chat/'+fid+'?since='+lastMid());
       const j=await r.json();
-      if(j.ok&&j.msgs.length){
+      if(!j.ok)return;
+      if(j.msgs.length){
         box.querySelector('.muted')?.remove();
         j.msgs.forEach(m=>{
           if(box.querySelector('[data-mid="'+m.id+'"]'))return;
@@ -35,40 +139,17 @@ function gotoChat(fid){location.href='/dashboard?c='+fid+'#mesaj';}
         });
         box.scrollTop=box.scrollHeight;
       }
+      if(ind)ind.style.display=j.typing?'block':'none';
     }catch(e){}
   }
   setInterval(poll,5000);
+  let tT=null;
+  document.getElementById('chatInput')?.addEventListener('input',()=>{
+    if(tT)return;
+    fetch('/api/chat/'+fid+'/typing',{method:'POST'}).catch(()=>{});
+    tT=setTimeout(()=>tT=null,6000);
+  });
 })();
 
-// pomodoro
-let totalSec = 25*60, leftSec = totalSec, timerId = null, isBreak = false;
-const el = () => document.getElementById('timer');
-function fmt(s){const m=Math.floor(s/60),ss=s%60;return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
-function render(){if(!el())return;el().textContent=fmt(leftSec);document.title=fmt(leftSec)+' — Odak';}
-function setLen(m){stopTimer();totalSec=m*60;leftSec=totalSec;isBreak=(m<=15&&totalSec<=15*60&&(m===5||m===15));const b=document.getElementById('startBtn');if(b)b.textContent='Başla';render();}
-function toggleTimer(){
-  const btn=document.getElementById('startBtn');
-  if(timerId){stopTimer();if(btn)btn.textContent='Devam Et';return;}
-  if(btn)btn.textContent='Duraklat';
-  timerId=setInterval(()=>{
-    leftSec--;render();
-    if(leftSec<=0){stopTimer();if(btn)btn.textContent='Başla';finish();}
-  },1000);
-}
-function stopTimer(){if(timerId){clearInterval(timerId);timerId=null;}}
-function resetTimer(){stopTimer();leftSec=totalSec;const b=document.getElementById('startBtn');if(b)b.textContent='Başla';render();}
-async function finish(){
-  const mins=Math.round(totalSec/60);
-  const kind=isBreak?'break':'focus';
-  const msg=document.getElementById('pomMsg');
-  if(kind==='break'){if(msg)msg.textContent='Mola bitti. Yeni bir odak başlat.';resetTimer();return;}
-  if(msg)msg.textContent='Kaydediliyor...';
-  try{
-    const r=await fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({minutes:mins,kind})});
-    const j=await r.json();
-    if(j.ok){if(msg)msg.textContent='+'+j.xp+' XP. Bugün '+j.today_min+' dk / '+j.today_xp+' XP.';location.reload();}
-    else if(msg)msg.textContent='Kayıt hatası.';
-  }catch(e){if(msg)msg.textContent='Bağlantı hatası.';}
-  resetTimer();
-}
-render();
+// PWA
+try{if('serviceWorker' in navigator)navigator.serviceWorker.register('/static/sw.js').catch(()=>{});}catch(e){}

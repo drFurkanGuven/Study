@@ -98,13 +98,39 @@ def init_db():
         FOREIGN KEY(friendship_id) REFERENCES friendships(id),
         FOREIGN KEY(sender) REFERENCES users(id)
     );
+    CREATE TABLE IF NOT EXISTS presence (
+        user_id INTEGER PRIMARY KEY,
+        detail TEXT DEFAULT '',
+        updated_at TEXT NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS typing (
+        friendship_id INTEGER NOT NULL,
+        user_id INTEGER NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (friendship_id, user_id)
+    );
+    CREATE TABLE IF NOT EXISTS announcements (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        body TEXT NOT NULL,
+        by_user INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+    );
     """)
-    # eski DB'lere davet kodu + admin kolonu ekle, kodları doldur, ilk kullanıcıyı admin yap
+    # eski DB migration
     cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
     if "invite_code" not in cols:
-        _add_col(db, "invite_code TEXT")
+        _add_col(db, "users", "invite_code TEXT")
     if "is_admin" not in cols:
-        _add_col(db, "is_admin INTEGER DEFAULT 0")
+        _add_col(db, "users", "is_admin INTEGER DEFAULT 0")
+    if "daily_goal" not in cols:
+        _add_col(db, "users", "daily_goal INTEGER DEFAULT 120")
+    if "is_frozen" not in cols:
+        _add_col(db, "users", "is_frozen INTEGER DEFAULT 0")
+    scols = [r[1] for r in db.execute("PRAGMA table_info(sessions)").fetchall()]
+    for col, ddl in (("task_id", "task_id INTEGER"), ("subject", "subject TEXT DEFAULT ''"),
+                     ("goal", "goal TEXT DEFAULT ''"), ("score", "score INTEGER")):
+        if col not in scols:
+            _add_col(db, "sessions", ddl)
     db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite ON users(invite_code)")
     for r in db.execute("SELECT id FROM users WHERE invite_code IS NULL").fetchall():
         db.execute("UPDATE users SET invite_code=? WHERE id=?", (make_code(), r[0]))
@@ -118,10 +144,10 @@ def make_code(n=6):
     return "".join(secrets.choice(alpha) for _ in range(n))
 
 
-def _add_col(db, ddl):
+def _add_col(db, table, ddl):
     # gunicorn worker'ları aynı anda koşabilir: duplicate olursa sessiz geç
     try:
-        db.execute(f"ALTER TABLE users ADD COLUMN {ddl}")
+        db.execute(f"ALTER TABLE {table} ADD COLUMN {ddl}")
     except sqlite3.OperationalError as e:
         if "duplicate" not in str(e).lower():
             raise
@@ -243,6 +269,62 @@ def are_friends(a, b):
 def week_start():
     return (date.today() - timedelta(days=date.today().weekday())).isoformat()
 
+
+def week_xp_range(user_id, ws):
+    """Belirli bir haftanın (ws = pazartesi) XP'si: session + biten görevler."""
+    from datetime import datetime as _dt
+    we = (_dt.fromisoformat(ws).date() + timedelta(days=7)).isoformat()
+    db = get_db()
+    s = db.execute("SELECT COALESCE(SUM(xp_earned),0) x FROM sessions WHERE user_id=? AND date(created_at)>=? AND date(created_at)<?",
+                   (user_id, ws, we)).fetchone()["x"]
+    t = db.execute("SELECT COUNT(*) c FROM tasks WHERE user_id=? AND done=1 AND date(completed_at)>=? AND date(completed_at)<?",
+                   (user_id, ws, we)).fetchone()["c"] * TASK_XP
+    return s + t
+
+
+def subject_stats(user_id):
+    """Ders etiketi -> toplam dakika + session sayısı (kendi verisi)."""
+    db = get_db()
+    rows = db.execute("""SELECT COALESCE(NULLIF(subject,''),'(etiket yok)') AS s,
+                         COALESCE(SUM(minutes),0) m, COUNT(*) c
+                         FROM sessions WHERE user_id=? AND kind='focus'
+                         GROUP BY s ORDER BY m DESC LIMIT 8""", (user_id,)).fetchall()
+    return [{"s": r["s"], "m": r["m"], "c": r["c"]} for r in rows]
+
+
+def resolve_wagers():
+    """Bitmiş haftaların kabul edilmiş iddialarını sonuçlandır (tembel cron)."""
+    db = get_db()
+    cur = week_start()
+    rows = db.execute("SELECT * FROM wagers WHERE status='accepted' AND week_start<?", (cur,)).fetchall()
+    for w in rows:
+        fs = db.execute("SELECT * FROM friendships WHERE id=?", (w["friendship_id"],)).fetchone()
+        if not fs:
+            db.execute("UPDATE wagers SET status='done' WHERE id=?", (w["id"],))
+            continue
+        a, b = fs["requester"], fs["addressee"]
+        xa, xb = week_xp_range(a, w["week_start"]), week_xp_range(b, w["week_start"])
+        winner = a if xa > xb else (b if xb > xa else None)
+        db.execute("UPDATE wagers SET status='done', winner_id=? WHERE id=?", (winner, w["id"]))
+    if rows:
+        db.commit()
+
+
+def league_table(user_id):
+    """Son 4 hafta XP toplamı: ben + direkt arkadaşlar."""
+    db = get_db()
+    ids = [user_id] + friend_ids(user_id)
+    ws = [((date.today() - timedelta(weeks=i)) - timedelta(days=(date.today() - timedelta(weeks=i)).weekday())).isoformat() for i in range(4)]
+    table = []
+    for uid in ids:
+        u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+        if not u:
+            continue
+        total = sum(week_xp_range(uid, w) for w in ws)
+        table.append({"username": u["username"], "id": uid, "xp4": total, "is_me": uid == user_id})
+    table.sort(key=lambda x: x["xp4"], reverse=True)
+    return table
+
 # ---------- routes ----------
 @app.route("/")
 def index():
@@ -279,10 +361,14 @@ def login():
         db = get_db()
         user = db.execute("SELECT * FROM users WHERE username=?", (u,)).fetchone()
         if user and check_password_hash(user["password_hash"], p):
-            session["user_id"] = user["id"]
-            session["username"] = user["username"]
-            return redirect(url_for("dashboard"))
-        err = "Hatalı giriş. Tekrar dene."
+            if user["is_frozen"]:
+                err = "Hesabın dondurulmuş. Yöneticiyle görüş."
+            else:
+                session["user_id"] = user["id"]
+                session["username"] = user["username"]
+                return redirect(url_for("dashboard"))
+        else:
+            err = "Hatalı giriş. Tekrar dene."
     return render_template("login.html", err=err)
 
 @app.route("/logout")
@@ -294,12 +380,14 @@ def logout():
 @login_required
 def dashboard():
     db = get_db()
+    resolve_wagers()
     me = current_user()
     my = user_stats(me["id"])
     lvl, prog, title = level_for_xp(my["total_xp"])
 
     tasks = db.execute("SELECT * FROM tasks WHERE user_id=? ORDER BY done, id DESC",
                        (me["id"],)).fetchall()
+    open_tasks = [t for t in tasks if not t["done"]][:20]
 
     # --- gizli ikili arkadaşlıklar: sadece direkt arkadaşlarım ---
     fids = friend_ids(me["id"])
@@ -318,11 +406,15 @@ def dashboard():
         wager = db.execute(
             """SELECT * FROM wagers WHERE friendship_id=? AND status IN ('proposed','accepted')
                ORDER BY id DESC LIMIT 1""", (fs["id"],)).fetchone()
+        # bitmiş son iddia (sonuç rozeti)
+        past = db.execute(
+            """SELECT * FROM wagers WHERE friendship_id=? AND status='done'
+               ORDER BY id DESC LIMIT 1""", (fs["id"],)).fetchone()
         my_w = my["week_xp"]
         th_w = st["week_xp"]
         leader = "me" if my_w > th_w else ("them" if th_w > my_w else "tie")
         friends.append({"user": o, "stats": st, "level": olvl, "title": otitle,
-                        "fid": fs["id"], "wager": wager,
+                        "fid": fs["id"], "wager": wager, "past": past,
                         "my_week": my_w, "their_week": th_w, "leader": leader})
 
     # istekler
@@ -350,6 +442,27 @@ def dashboard():
 
     # ekip toplamı (sadece sayı, isim yok)
     joint_week_min = my["week_min"] + sum(f["stats"]["week_min"] for f in friends)
+
+    # ders dağılımı + odak kalitesi + günlük hedef + zincir
+    subs = subject_stats(me["id"])
+    favg = db.execute("SELECT AVG(score) a, COUNT(*) c FROM sessions WHERE user_id=? AND score IS NOT NULL AND date(created_at)>=?",
+                      (me["id"], (date.today() - timedelta(days=6)).isoformat())).fetchone()
+    daily_goal = me["daily_goal"] or 120
+    ring_pct = min(100, int(my["today_min"] / daily_goal * 100)) if daily_goal else 0
+    chain = my["today_sessions"]
+    league = league_table(me["id"])
+    live = {}
+    for fid in fids:
+        r = db.execute("SELECT detail, updated_at FROM presence WHERE user_id=?", (fid,)).fetchone()
+        if r:
+            try:
+                ago = (datetime.now() - datetime.fromisoformat(r["updated_at"])).total_seconds()
+                if ago < 120:
+                    live[fid] = r["detail"]
+            except (TypeError, ValueError):
+                pass
+    announces = db.execute("""SELECT a.*, u.username AS by_name FROM announcements a
+                              JOIN users u ON u.id=a.by_user ORDER BY a.id DESC LIMIT 3""").fetchall()
     joint_pct = min(100, int(joint_week_min / WEEKLY_JOINT_GOAL_MIN * 100)) if WEEKLY_JOINT_GOAL_MIN else 0
 
     # gelen mesajlar (okundu işaretle) — eski poke kutusu yerine chat var
@@ -378,12 +491,14 @@ def dashboard():
             "SELECT * FROM messages WHERE friendship_id=? ORDER BY id", (chat_fid,)).fetchall()
 
     return render_template("dashboard.html", me=me, my=my, level=lvl, progress=prog,
-                           title=title, tasks=tasks, friends=friends, board=board,
+                           title=title, tasks=tasks, open_tasks=open_tasks, friends=friends, board=board,
                            req_in=req_in, req_out=req_out,
                            joint_min=joint_week_min, joint_goal=WEEKLY_JOINT_GOAL_MIN,
                            joint_pct=joint_pct, task_xp=TASK_XP,
                            wager_presets=WAGER_PRESETS,
-                           chat_fid=chat_fid, chat_msgs=chat_msgs, chat_peer=chat_peer)
+                           chat_fid=chat_fid, chat_msgs=chat_msgs, chat_peer=chat_peer,
+                           subs=subs, favg=favg, daily_goal=daily_goal, ring_pct=ring_pct,
+                           chain=chain, league=league, live=live, announces=announces)
 
 @app.route("/api/tasks", methods=["POST"])
 @login_required
@@ -427,12 +542,88 @@ def log_session():
     if minutes < 1 or minutes > 180:
         return jsonify({"ok": False, "err": "geçersiz süre"}), 400
     xp = minutes * FOCUS_XP_PER_MIN if kind == "focus" else 0
+    task_id = data.get("task_id")
+    try:
+        task_id = int(task_id) if task_id else None
+    except (TypeError, ValueError):
+        task_id = None
+    subject = (data.get("subject") or "")[:60]
+    goal = (data.get("goal") or "")[:160]
+    try:
+        score = int(data.get("score") or 0) or None
+        score = score if score in (1, 2, 3, 4, 5) else None
+    except (TypeError, ValueError):
+        score = None
     db = get_db()
-    db.execute("INSERT INTO sessions (user_id, minutes, kind, xp_earned, created_at) VALUES (?,?,?,?,?)",
-               (session["user_id"], minutes, kind, xp, datetime.now().isoformat()))
+    if task_id:
+        t = db.execute("SELECT * FROM tasks WHERE id=? AND user_id=?", (task_id, session["user_id"])).fetchone()
+        if t:
+            if not subject and t["subject"]:
+                subject = t["subject"]
+        else:
+            task_id = None
+    db.execute("""INSERT INTO sessions (user_id, minutes, kind, xp_earned, created_at, task_id, subject, goal, score)
+                  VALUES (?,?,?,?,?,?,?,?,?)""",
+               (session["user_id"], minutes, kind, xp, datetime.now().isoformat(),
+                task_id, subject, goal, score))
     db.commit()
     st = user_stats(session["user_id"])
     return jsonify({"ok": True, "xp": xp, "today_min": st["today_min"], "today_xp": st["today_xp"]})
+
+
+@app.route("/api/settings", methods=["POST"])
+@login_required
+def settings():
+    try:
+        g = max(15, min(720, int(request.form.get("daily_goal", 120))))
+    except (TypeError, ValueError):
+        g = 120
+    db = get_db()
+    db.execute("UPDATE users SET daily_goal=? WHERE id=?", (g, session["user_id"]))
+    db.commit()
+    return redirect(url_for("dashboard", _anchor="istatistik"))
+
+
+@app.route("/api/presence/ping", methods=["POST"])
+@login_required
+def presence_ping():
+    data = request.get_json(force=True, silent=True) or {}
+    detail = (data.get("detail") or "")[:80]
+    db = get_db()
+    db.execute("INSERT INTO presence (user_id, detail, updated_at) VALUES (?,?,?) ON CONFLICT(user_id) DO UPDATE SET detail=excluded.detail, updated_at=excluded.updated_at",
+               (session["user_id"], detail, datetime.now().isoformat()))
+    db.commit()
+    # eski kayıtları temizle
+    db.execute("DELETE FROM presence WHERE updated_at < ?", ((datetime.now() - timedelta(minutes=5)).isoformat(),))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/presence/clear", methods=["POST"])
+@login_required
+def presence_clear():
+    db = get_db()
+    db.execute("DELETE FROM presence WHERE user_id=?", (session["user_id"],))
+    db.commit()
+    return jsonify({"ok": True})
+
+
+@app.route("/api/presence", methods=["GET"])
+@login_required
+def presence_list():
+    db = get_db()
+    out = {}
+    for fid in friend_ids(session["user_id"]):
+        r = db.execute("SELECT detail, updated_at FROM presence WHERE user_id=?", (fid,)).fetchone()
+        if not r:
+            continue
+        try:
+            ago = (datetime.now() - datetime.fromisoformat(r["updated_at"])).total_seconds()
+        except (TypeError, ValueError):
+            continue
+        if ago < 120:
+            out[fid] = {"detail": r["detail"], "ago": int(ago)}
+    return jsonify({"ok": True, "live": out})
 
 @app.route("/api/chat/<int:fid>", methods=["GET"])
 @login_required
@@ -444,7 +635,22 @@ def chat_fetch(fid):
     since = int(request.args.get("since", 0))
     rows = db.execute("SELECT id, sender, body, created_at FROM messages WHERE friendship_id=? AND id>? ORDER BY id LIMIT 100",
                       (fid, since)).fetchall()
-    return jsonify({"ok": True, "msgs": [dict(r) for r in rows], "me": session["user_id"]})
+    t = db.execute("SELECT 1 FROM typing WHERE friendship_id=? AND user_id!=? AND updated_at>?",
+                   (fid, session["user_id"], (datetime.now() - timedelta(seconds=8)).isoformat())).fetchone()
+    return jsonify({"ok": True, "msgs": [dict(r) for r in rows], "me": session["user_id"], "typing": bool(t)})
+
+
+@app.route("/api/chat/<int:fid>/typing", methods=["POST"])
+@login_required
+def chat_typing(fid):
+    db = get_db()
+    fs = db.execute("SELECT * FROM friendships WHERE id=? AND status='accepted'", (fid,)).fetchone()
+    if not fs or session["user_id"] not in (fs["requester"], fs["addressee"]):
+        return jsonify({"ok": False}), 403
+    db.execute("INSERT INTO typing (friendship_id, user_id, updated_at) VALUES (?,?,?) ON CONFLICT(friendship_id, user_id) DO UPDATE SET updated_at=excluded.updated_at",
+               (fid, session["user_id"], datetime.now().isoformat()))
+    db.commit()
+    return jsonify({"ok": True})
 
 
 @app.route("/api/chat/<int:fid>/send", methods=["POST"])
@@ -506,6 +712,40 @@ def admin_toggle(uid):
     if u:
         db.execute("UPDATE users SET is_admin=? WHERE id=?", (0 if u["is_admin"] else 1, uid))
         db.commit()
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/user/<int:uid>/freeze", methods=["POST"])
+@admin_required
+def admin_freeze(uid):
+    if uid == session["user_id"]:
+        return redirect(url_for("admin"))
+    db = get_db()
+    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if u:
+        db.execute("UPDATE users SET is_frozen=? WHERE id=?", (0 if u["is_frozen"] else 1, uid))
+        db.commit()
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/announce", methods=["POST"])
+@admin_required
+def admin_announce():
+    body = request.form.get("body", "").strip()[:300]
+    if body:
+        db = get_db()
+        db.execute("INSERT INTO announcements (body, by_user, created_at) VALUES (?,?,?)",
+                   (body, session["user_id"], datetime.now().isoformat()))
+        db.commit()
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/announce/<int:aid>/delete", methods=["POST"])
+@admin_required
+def admin_announce_del(aid):
+    db = get_db()
+    db.execute("DELETE FROM announcements WHERE id=?", (aid,))
+    db.commit()
     return redirect(url_for("admin"))
 
 
