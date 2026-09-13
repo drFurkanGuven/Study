@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Yönetim — Odak</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="logo-sm">◉ Odak</span> <span class="badge">Yönetim</span></div>
+  <div class="userbox"><strong>{{ me['username'] }}</strong> <a href="/dashboard" class="btn small">Panele dön</a></div>
+</header>
+<main class="wrap">
+  <div class="card">
+    <h2>Kullanıcılar ({{ rows|length }})</h2>
+    <div class="admin-list">
+      {% for r in rows %}
+      <div class="row duel-row admin-row">
+        <span><strong>{{ r.u['username'] }}</strong>
+          {% if r.u['is_admin'] %}<span class="badge">admin</span>{% endif %}
+          <small class="muted">{{ r.xp }} XP · {{ r.mins }}' · {{ r.streak }}🔥 · {{ r.friends }} arkadaş · {{ r.u['invite_code'] }}</small>
+        </span>
+        {% if r.u['id'] != me['id'] %}
+        <span class="row">
+          <form action="/admin/user/{{ r.u['id'] }}/toggle-admin" method="post"><button class="btn small" type="submit">{{ 'Admini kaldır' if r.u['is_admin'] else 'Admin yap' }}</button></form>
+          <form action="/admin/user/{{ r.u['id'] }}/delete" method="post" onsubmit="return confirm('{{ r.u['username'] }} silinsin mi? Tüm verisi gider!')"><button class="btn small danger" type="submit">Sil</button></form>
+        </span>
+        {% else %}
+        <span class="muted">sen</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</main>
+</body>
+</html>

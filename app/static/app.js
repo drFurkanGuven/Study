@@ -6,7 +6,39 @@ function showTab(name){
   window.scrollTo({top:0,behavior:'smooth'});
 }
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
-(function(){const h=(location.hash||'').replace('#','');if(h&&document.getElementById('panel-'+h))showTab(h);})();
+(function(){
+  const h=(location.hash||'').replace('#','');
+  const valid=['odak','gorev','istatistik','ekip','mesaj'];
+  if(valid.includes(h))showTab(h);
+})();
+function gotoChat(fid){location.href='/dashboard?c='+fid+'#mesaj';}
+// chat: alta kaydır + 5sn'de bir yeni mesajları çek
+(function(){
+  const box=document.getElementById('chatbox');
+  if(!box)return;
+  box.scrollTop=box.scrollHeight;
+  const fid=box.dataset.fid, me=box.dataset.me;
+  const lastMid=()=>{const l=box.querySelector('.msg:last-child');return l?parseInt(l.dataset.mid||'0',10):0;};
+  async function poll(){
+    try{
+      const r=await fetch('/api/chat/'+fid+'?since='+lastMid());
+      const j=await r.json();
+      if(j.ok&&j.msgs.length){
+        box.querySelector('.muted')?.remove();
+        j.msgs.forEach(m=>{
+          if(box.querySelector('[data-mid="'+m.id+'"]'))return;
+          const d=document.createElement('div');
+          d.className='msg '+(String(m.sender)===String(me)?'me':'them');
+          d.dataset.mid=m.id;
+          const s=document.createElement('span');s.textContent=m.body;d.appendChild(s);
+          box.appendChild(d);
+        });
+        box.scrollTop=box.scrollHeight;
+      }
+    }catch(e){}
+  }
+  setInterval(poll,5000);
+})();
 
 // pomodoro
 let totalSec = 25*60, leftSec = totalSec, timerId = null, isBreak = false;

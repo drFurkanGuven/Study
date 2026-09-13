@@ -89,14 +89,26 @@ def init_db():
         FOREIGN KEY(friendship_id) REFERENCES friendships(id),
         FOREIGN KEY(proposer) REFERENCES users(id)
     );
+    CREATE TABLE IF NOT EXISTS messages (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        friendship_id INTEGER NOT NULL,
+        sender INTEGER NOT NULL,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY(friendship_id) REFERENCES friendships(id),
+        FOREIGN KEY(sender) REFERENCES users(id)
+    );
     """)
-    # eski DB'lere davet kodu kolonu ekle + kodları doldur
+    # eski DB'lere davet kodu + admin kolonu ekle, kodları doldur, ilk kullanıcıyı admin yap
     cols = [r[1] for r in db.execute("PRAGMA table_info(users)").fetchall()]
     if "invite_code" not in cols:
         db.execute("ALTER TABLE users ADD COLUMN invite_code TEXT")
+    if "is_admin" not in cols:
+        db.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
     db.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_invite ON users(invite_code)")
     for r in db.execute("SELECT id FROM users WHERE invite_code IS NULL").fetchall():
         db.execute("UPDATE users SET invite_code=? WHERE id=?", (make_code(), r[0]))
+    db.execute("UPDATE users SET is_admin=1 WHERE id=1")
     db.commit()
     db.close()
 
@@ -111,6 +123,16 @@ def login_required(f):
     def wrapper(*a, **kw):
         if "user_id" not in session:
             return redirect(url_for("login"))
+        return f(*a, **kw)
+    return wrapper
+
+
+def admin_required(f):
+    @wraps(f)
+    @login_required
+    def wrapper(*a, **kw):
+        if not current_user()["is_admin"]:
+            return redirect(url_for("dashboard"))
         return f(*a, **kw)
     return wrapper
 
@@ -230,8 +252,9 @@ def register():
         else:
             db = get_db()
             try:
-                db.execute("INSERT INTO users (username, password_hash, created_at, invite_code) VALUES (?,?,?,?)",
-                           (u, generate_password_hash(p), datetime.now().isoformat(), make_code()))
+                first = db.execute("SELECT COUNT(*) c FROM users").fetchone()["c"] == 0
+                db.execute("INSERT INTO users (username, password_hash, created_at, invite_code, is_admin) VALUES (?,?,?,?,?)",
+                           (u, generate_password_hash(p), datetime.now().isoformat(), make_code(), 1 if first else 0))
                 db.commit()
                 return redirect(url_for("login"))
             except sqlite3.IntegrityError:
@@ -320,21 +343,38 @@ def dashboard():
     joint_week_min = my["week_min"] + sum(f["stats"]["week_min"] for f in friends)
     joint_pct = min(100, int(joint_week_min / WEEKLY_JOINT_GOAL_MIN * 100)) if WEEKLY_JOINT_GOAL_MIN else 0
 
-    # gelen / giden dürtmeler
-    pokes_in = db.execute(
-        """SELECT p.*, u.username AS from_name FROM pokes p
-           JOIN users u ON u.id=p.from_user
-           WHERE p.to_user=? ORDER BY p.id DESC LIMIT 8""", (me["id"],)).fetchall()
-    # görülmemişleri işaretle
+    # gelen mesajlar (okundu işaretle) — eski poke kutusu yerine chat var
     db.execute("UPDATE pokes SET seen=1 WHERE to_user=?", (me["id"],))
     db.commit()
+
+    # chat: ?c=friendship_id seçili konuşma
+    try:
+        chat_fid = int(request.args.get("c", 0))
+    except (TypeError, ValueError):
+        chat_fid = 0
+    chat_msgs, chat_peer = [], None
+    if chat_fid:
+        fs = db.execute("SELECT * FROM friendships WHERE id=? AND status='accepted'", (chat_fid,)).fetchone()
+        if fs and me["id"] in (fs["requester"], fs["addressee"]):
+            peer_id = fs["addressee"] if fs["requester"] == me["id"] else fs["requester"]
+            chat_peer = db.execute("SELECT * FROM users WHERE id=?", (peer_id,)).fetchone()
+            chat_msgs = db.execute(
+                "SELECT * FROM messages WHERE friendship_id=? ORDER BY id", (chat_fid,)).fetchall()
+        else:
+            chat_fid = 0
+    if not chat_fid and friends:
+        chat_fid = friends[0]["fid"]
+        chat_peer = friends[0]["user"]
+        chat_msgs = db.execute(
+            "SELECT * FROM messages WHERE friendship_id=? ORDER BY id", (chat_fid,)).fetchall()
 
     return render_template("dashboard.html", me=me, my=my, level=lvl, progress=prog,
                            title=title, tasks=tasks, friends=friends, board=board,
                            req_in=req_in, req_out=req_out,
                            joint_min=joint_week_min, joint_goal=WEEKLY_JOINT_GOAL_MIN,
-                           joint_pct=joint_pct, pokes=pokes_in, task_xp=TASK_XP,
-                           wager_presets=WAGER_PRESETS)
+                           joint_pct=joint_pct, task_xp=TASK_XP,
+                           wager_presets=WAGER_PRESETS,
+                           chat_fid=chat_fid, chat_msgs=chat_msgs, chat_peer=chat_peer)
 
 @app.route("/api/tasks", methods=["POST"])
 @login_required
@@ -385,28 +425,79 @@ def log_session():
     st = user_stats(session["user_id"])
     return jsonify({"ok": True, "xp": xp, "today_min": st["today_min"], "today_xp": st["today_xp"]})
 
-@app.route("/api/poke", methods=["POST"])
+@app.route("/api/chat/<int:fid>", methods=["GET"])
 @login_required
-def poke():
-    to_id = request.form.get("to_user", "")
-    msg = request.form.get("message", "").strip()[:200]
-    presets = {
-        "devam": "Güzel gidiyorsun, devam et!",
-        "mola-bit": "Mola bitti, bir pomodoro daha?",
-        "seri": "Güzel seri yakaladın, bozma!",
-        "yaris": "Rekabete hazır mısın? Hodri meydan!",
-    }
-    if msg.startswith("preset:"):
-        msg = presets.get(msg[7:], msg)
-    if not to_id or not msg:
-        return redirect(url_for("dashboard"))
-    if not are_friends(session["user_id"], int(to_id)):
-        return redirect(url_for("dashboard"))
+def chat_fetch(fid):
     db = get_db()
-    db.execute("INSERT INTO pokes (from_user, to_user, message, created_at) VALUES (?,?,?,?)",
-               (session["user_id"], int(to_id), msg, datetime.now().isoformat()))
+    fs = db.execute("SELECT * FROM friendships WHERE id=? AND status='accepted'", (fid,)).fetchone()
+    if not fs or session["user_id"] not in (fs["requester"], fs["addressee"]):
+        return jsonify({"ok": False}), 403
+    since = int(request.args.get("since", 0))
+    rows = db.execute("SELECT id, sender, body, created_at FROM messages WHERE friendship_id=? AND id>? ORDER BY id LIMIT 100",
+                      (fid, since)).fetchall()
+    return jsonify({"ok": True, "msgs": [dict(r) for r in rows], "me": session["user_id"]})
+
+
+@app.route("/api/chat/<int:fid>/send", methods=["POST"])
+@login_required
+def chat_send(fid):
+    db = get_db()
+    fs = db.execute("SELECT * FROM friendships WHERE id=? AND status='accepted'", (fid,)).fetchone()
+    if not fs or session["user_id"] not in (fs["requester"], fs["addressee"]):
+        return redirect(url_for("dashboard"))
+    body = request.form.get("body", "").strip()[:500]
+    if body:
+        db.execute("INSERT INTO messages (friendship_id, sender, body, created_at) VALUES (?,?,?,?)",
+                   (fid, session["user_id"], body, datetime.now().isoformat()))
+        db.commit()
+    return redirect(url_for("dashboard", c=fid, _anchor="mesaj"))
+
+
+@app.route("/admin")
+@admin_required
+def admin():
+    db = get_db()
+    users = db.execute("SELECT * FROM users ORDER BY id").fetchall()
+    rows = []
+    for u in users:
+        st = user_stats(u["id"])
+        nf = len(friend_ids(u["id"]))
+        rows.append({"u": u, "xp": st["total_xp"], "mins": st["total_min"],
+                     "streak": st["streak"], "friends": nf})
+    return render_template("admin.html", rows=rows, me=current_user())
+
+
+@app.route("/admin/user/<int:uid>/delete", methods=["POST"])
+@admin_required
+def admin_delete(uid):
+    if uid == session["user_id"]:
+        return redirect(url_for("admin"))
+    db = get_db()
+    fids = [r["id"] for r in db.execute(
+        "SELECT id FROM friendships WHERE requester=? OR addressee=?", (uid, uid)).fetchall()]
+    for fid in fids:
+        db.execute("DELETE FROM wagers WHERE friendship_id=?", (fid,))
+        db.execute("DELETE FROM messages WHERE friendship_id=?", (fid,))
+    db.execute("DELETE FROM friendships WHERE requester=? OR addressee=?", (uid, uid))
+    db.execute("DELETE FROM tasks WHERE user_id=?", (uid,))
+    db.execute("DELETE FROM sessions WHERE user_id=?", (uid,))
+    db.execute("DELETE FROM pokes WHERE from_user=? OR to_user=?", (uid, uid))
+    db.execute("DELETE FROM users WHERE id=?", (uid,))
     db.commit()
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("admin"))
+
+
+@app.route("/admin/user/<int:uid>/toggle-admin", methods=["POST"])
+@admin_required
+def admin_toggle(uid):
+    if uid == session["user_id"]:
+        return redirect(url_for("admin"))
+    db = get_db()
+    u = db.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
+    if u:
+        db.execute("UPDATE users SET is_admin=? WHERE id=?", (0 if u["is_admin"] else 1, uid))
+        db.commit()
+    return redirect(url_for("admin"))
 
 
 WAGER_PRESETS = [

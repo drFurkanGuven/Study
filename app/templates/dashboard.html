@@ -9,7 +9,7 @@
 <body>
 <header class="topbar">
   <div class="brand"><span class="logo-sm">◉ Odak</span> <span class="badge">Lv {{ level }} · {{ title }}</span></div>
-  <div class="userbox"><strong>{{ me['username'] }}</strong> <a href="/logout" class="btn small">Çıkış</a></div>
+  <div class="userbox"><strong>{{ me['username'] }}</strong>{% if me['is_admin'] %} <a href="/admin" class="btn small">Yönetim</a>{% endif %} <a href="/logout" class="btn small">Çıkış</a></div>
 </header>
 
 <nav class="tabs" role="tablist">
@@ -17,7 +17,7 @@
   <button class="tab" data-tab="gorev" role="tab">✓<span>Görev</span></button>
   <button class="tab" data-tab="istatistik" role="tab">▦<span>Veri</span></button>
   <button class="tab" data-tab="ekip" role="tab">◎<span>Ekip</span></button>
-  <button class="tab" data-tab="mesaj" role="tab">✉<span>Mesaj</span>{% if pokes %}<i class="dot">{{ pokes|length }}</i>{% endif %}</button>
+  <button class="tab" data-tab="mesaj" role="tab">✉<span>Sohbet</span></button>
 </nav>
 
 <main class="wrap">
@@ -174,10 +174,7 @@
       </form>
       {% endif %}
 
-      <form action="/api/poke" method="post" class="task-add" style="margin-top:8px">
-        <input type="hidden" name="to_user" value="{{ f.user['id'] }}">
-        <input name="message" placeholder="{{ f.user['username'] }} adlı kişiye mesaj..." maxlength="200" required>
-        <button class="btn" type="submit">Dürt</button>
+      <button class="btn" onclick="gotoChat({{ f.fid }})">Sohbet</button>
       </form>
     </div>
     {% else %}
@@ -185,16 +182,31 @@
     {% endfor %}
   </section>
 
-  <!-- MESAJ -->
-  <section class="card panel" id="panel-mesaj">
-    <h2>Gelenler</h2>
-    <ul class="pokes">
-      {% for m in pokes %}
-      <li><strong>{{ m['from_name'] }}:</strong> {{ m['message'] }} <small>{{ m['created_at'][:16].replace('T',' ') }}</small></li>
-      {% else %}
-      <li class="muted">Henüz mesaj yok.</li>
+  <!-- SOHBET -->
+  <section class="card panel chat-panel" id="panel-mesaj">
+    {% if friends %}
+    <div class="convos">
+      {% for f in friends %}
+      <a href="/dashboard?c={{ f.fid }}#mesaj" class="convo {{ 'active' if f.fid==chat_fid else '' }}">{{ f.user['username'] }}</a>
       {% endfor %}
-    </ul>
+    </div>
+    {% if chat_peer %}
+    <h2>{{ chat_peer['username'] }}</h2>
+    <div class="chatbox" id="chatbox" data-fid="{{ chat_fid }}" data-me="{{ me['id'] }}">
+      {% for m in chat_msgs %}
+      <div class="msg {{ 'me' if m['sender']==me['id'] else 'them' }}" data-mid="{{ m['id'] }}"><span>{{ m['body'] }}</span></div>
+      {% else %}
+      <p class="muted">Henüz mesaj yok. İlk yazan sen ol.</p>
+      {% endfor %}
+    </div>
+    <form action="/api/chat/{{ chat_fid }}/send" method="post" class="task-add chat-form">
+      <input name="body" placeholder="Mesaj yaz..." maxlength="500" required autocomplete="off">
+      <button class="btn primary" type="submit">Gönder</button>
+    </form>
+    {% endif %}
+    {% else %}
+    <p class="muted">Sohbet için önce arkadaş ekle (Ekip sekmesi).</p>
+    {% endif %}
   </section>
 
 </main>
