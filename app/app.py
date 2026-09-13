@@ -584,6 +584,26 @@ def settings():
     return redirect(url_for("dashboard", _anchor="istatistik"))
 
 
+@app.route("/api/updates", methods=["GET"])
+@login_required
+def updates():
+    """Canlı durum: gelen istekler + iddialar. Değişince istemci hap gösterir."""
+    db = get_db()
+    meid = session["user_id"]
+    reqs = [{"id": r["id"], "from": r["from_name"]} for r in db.execute(
+        """SELECT f.id, u.username AS from_name FROM friendships f
+           JOIN users u ON u.id=f.requester
+           WHERE f.addressee=? AND f.status='pending' ORDER BY f.id""", (meid,)).fetchall()]
+    wags = {}
+    for fid in friend_ids(meid):
+        w = db.execute("""SELECT id,status,proposer,text FROM wagers
+                          WHERE friendship_id=? AND status IN ('proposed','accepted')
+                          ORDER BY id DESC LIMIT 1""", (fid,)).fetchone()
+        if w:
+            wags[str(fid)] = {"wid": w["id"], "st": w["status"], "by": w["proposer"], "tx": w["text"]}
+    return jsonify({"ok": True, "req": reqs, "wagers": wags})
+
+
 @app.route("/api/presence/ping", methods=["POST"])
 @login_required
 def presence_ping():

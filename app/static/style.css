@@ -141,6 +141,9 @@ body.dark .duel-score .side.win{background:#1e1b4b;border-color:#4f46e5}
 .admin-row{justify-content:space-between;align-items:center;padding:9px 2px;border-bottom:1px solid var(--line)}
 .auth-wrap{flex:1;display:flex;align-items:center;justify-content:center;padding:20px;overflow-y:auto}
 .auth-card{max-width:380px;width:100%;text-align:center}
+#updPill{display:none;position:fixed;bottom:calc(76px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--acc);color:var(--bg);border:none;border-radius:24px;padding:10px 20px;font-size:14px;font-weight:700;z-index:50;box-shadow:0 4px 14px rgba(0,0,0,.25);cursor:pointer}
+#updPill.show{display:block}
+@media(min-width:700px){#updPill{bottom:24px}}
 
 /* ===== tablet: üst hap bar + 2 sütun ızgaralar ===== */
 @media(min-width:700px){

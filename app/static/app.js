@@ -115,7 +115,26 @@ async function pollLive(){
 }
 setInterval(pollLive,30000);
 
-// chat: alta kaydır + 5sn poll + yazıyor + typing bildir
+// canlı güncellemeler: istek + iddia değişince hap göster (timer bölünmez)
+let updBase=null;
+function updSig(j){return JSON.stringify({r:j.req.map(x=>x.id),w:j.wagers});}
+async function pollUpdates(){
+  if(document.hidden)return;
+  try{
+    const r=await fetch('/api/updates');const j=await r.json();
+    if(!j.ok)return;
+    const sig=updSig(j);
+    if(updBase===null){updBase=sig;return;}
+    if(sig!==updBase){
+      updBase=sig;
+      const typing=document.activeElement&&(document.activeElement.tagName==='INPUT'||document.activeElement.tagName==='SELECT');
+      if(timerId||typing){document.getElementById('updPill')?.classList.add('show');}
+      else location.reload();
+    }
+  }catch(e){}
+}
+setInterval(pollUpdates,8000);
+pollUpdates();
 (function(){
   const box=document.getElementById('chatbox');
   if(!box)return;
